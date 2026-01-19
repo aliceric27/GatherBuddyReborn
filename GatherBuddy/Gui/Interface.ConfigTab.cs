@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Numerics;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility;
@@ -768,6 +768,31 @@ public partial class Interface
         public static void DrawAlwaysMapsBox()
             => DrawCheckbox("Always gather maps when available",      "GBR will always grab maps first if it sees one in a node",
                 GatherBuddy.Config.AutoGatherConfig.AlwaysGatherMaps, b => GatherBuddy.Config.AutoGatherConfig.AlwaysGatherMaps = b);
+
+        public static void DrawPlayerTargetEvasionBox()
+        {
+            DrawCheckbox("被玩家选中时自动躲避",
+                "当其他玩家选中你一段时间后, 自动停止自动采集并返回旅馆。",
+                GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion,
+                b => GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion = b);
+            ImGui.SameLine();
+            ImGuiEx.PluginAvailabilityIndicator([new("Lifestream")]);
+        }
+
+        public static void DrawPlayerTargetEvasionSlider()
+        {
+            if (!GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion)
+                return;
+
+            var tmp = GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.DragInt("选中持续时间 (秒)", ref tmp, 0.5f, 1, 120))
+            {
+                GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds = Math.Clamp(tmp, 1, 120);
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("其他玩家选中你多长时间 (1-120 秒) 后触发躲避。");
+        }
     }
 
 
@@ -800,6 +825,8 @@ public partial class Interface
                 ConfigFunctions.DrawCheckRetainersBox();
                 ConfigFunctions.DrawFishCollectionBox();
                 ConfigFunctions.DrawAlwaysMapsBox();
+                ConfigFunctions.DrawPlayerTargetEvasionBox();
+                ConfigFunctions.DrawPlayerTargetEvasionSlider();
                 ImGui.TreePop();
             }
 

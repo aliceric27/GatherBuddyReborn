@@ -1,4 +1,4 @@
-﻿using ECommons.Automation.LegacyTaskManager;
+using ECommons.Automation.LegacyTaskManager;
 using GatherBuddy.Plugin;
 using System;
 using System.Collections.Generic;
@@ -114,10 +114,11 @@ namespace GatherBuddy.AutoGather
             }
         }
 
-        private readonly GatherBuddy     _plugin;
-        private readonly SoundHelper     _soundHelper;
-        private readonly AdvancedUnstuck _advancedUnstuck;
-        private readonly ActiveItemList  _activeItemList;
+        private readonly GatherBuddy           _plugin;
+        private readonly SoundHelper           _soundHelper;
+        private readonly AdvancedUnstuck       _advancedUnstuck;
+        private readonly ActiveItemList        _activeItemList;
+        private readonly PlayerTargetTracker   _playerTargetTracker = new();
 
         public Reflection.ArtisanExporter ArtisanExporter;
         public TaskManager                TaskManager { get; }
@@ -142,6 +143,7 @@ namespace GatherBuddy.AutoGather
                     YesAlready.Unlock();
 
                     _activeItemList.Reset();
+                    _playerTargetTracker.Reset();
                     Waiting                    = false;
                     ActionSequence             = null;
                     CurrentCollectableRotation = null;
@@ -212,6 +214,27 @@ namespace GatherBuddy.AutoGather
             if (!Enabled)
             {
                 return;
+            }
+
+            if (GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion)
+            {
+                if (_playerTargetTracker.ShouldEvade(GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds))
+                {
+                    var message = "检测到玩家选中 - 正在躲避返回旅馆...";
+                    GatherBuddy.Log.Information(message);
+                    Communicator.Print($"[GatherBuddy] {message}");
+                    Svc.Toasts.ShowNormal(message);
+
+                    Enabled = false;
+                    _playerTargetTracker.Reset();
+                    var lifeStreamCmd = GatherBuddy.Config.AutoGatherConfig.LifestreamCommand;
+                    if (lifeStreamCmd.StartsWith("/li ", StringComparison.OrdinalIgnoreCase))
+                        lifeStreamCmd = lifeStreamCmd[4..];
+                    if (lifeStreamCmd.StartsWith("/li", StringComparison.OrdinalIgnoreCase))
+                        lifeStreamCmd = lifeStreamCmd[3..].TrimStart();
+                    Chat.Instance.ExecuteCommand($"/li {lifeStreamCmd}");
+                    return;
+                }
             }
 
             try

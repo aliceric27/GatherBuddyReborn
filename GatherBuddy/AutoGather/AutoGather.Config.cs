@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -80,6 +80,9 @@ namespace GatherBuddy.AutoGather
         public bool AlwaysGatherMaps { get; set; } = false;
         public int MaxFishingSpotMinutes { get; set; } = 20;
         public bool UseNavigation { get; set; } = true;
+
+        public bool EnablePlayerTargetEvasion { get; set; } = false;
+        public int PlayerTargetEvasionSeconds { get; set; } = 10;
 
         public enum SortingType
         {
