@@ -50,6 +50,7 @@ namespace GatherBuddy.AutoGather
             _soundHelper                 =  new SoundHelper();
             _advancedUnstuck             =  new();
             _activeItemList              =  new ActiveItemList(plugin.AutoGatherListsManager);
+            _listsManager                =  plugin.AutoGatherListsManager;
             ArtisanExporter              =  new Reflection.ArtisanExporter(plugin.AutoGatherListsManager);
             Svc.Chat.CheckMessageHandled += OnMessageHandled;
             Svc.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, "Gathering", OnGatheringFinalize);
@@ -118,6 +119,7 @@ namespace GatherBuddy.AutoGather
         private readonly SoundHelper           _soundHelper;
         private readonly AdvancedUnstuck       _advancedUnstuck;
         private readonly ActiveItemList        _activeItemList;
+        private readonly AutoGatherListsManager _listsManager;
         private readonly PlayerTargetTracker   _playerTargetTracker = new();
 
         public Reflection.ArtisanExporter ArtisanExporter;
@@ -401,8 +403,7 @@ namespace GatherBuddy.AutoGather
             }
 
             var nearbyNodes = Svc.Objects.Where(o => o.ObjectKind == ObjectKind.GatheringPoint && o.IsTargetable).Select(o => o.DataId);
-            var next = _activeItemList.GetNextOrDefault(nearbyNodes)
-                .OrderByDescending(nodes => nodes.Item.ItemId);
+            var next = _activeItemList.GetNextOrDefault(nearbyNodes);
             if (!next.Any())
             {
                 if (!_activeItemList.HasItemsToGather)

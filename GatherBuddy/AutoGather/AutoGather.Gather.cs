@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -159,13 +160,23 @@ namespace GatherBuddy.AutoGather
         
         private ItemSlot? GetAnyCrystalInNode()
         {
+            // Build index lookup for user's configured crystal order from the ORIGINAL list manager
+            // (not _activeItemList which is re-sorted by location/time)
+            var crystalOrder = new Dictionary<uint, int>();
+            var idx = 0;
+            foreach (var item in _listsManager.ActiveItems.Where(i => i.Item?.IsCrystal ?? false))
+            {
+                crystalOrder.TryAdd(item.Item.ItemId, idx);
+                idx++;
+            }
+
             return NodeTracker.Available
                 .Where(s => s.Item.IsCrystal)
                 .Where(CheckItemOvercap)
-                //Prioritize crystals in the gathering list
-                .GroupJoin(_activeItemList.Where(i => i.Gatherable?.IsCrystal ?? false), s => s.Item, i => i.Item, (s, x) => (Slot: s, Order: x.Any()?1:0))
+                //Prioritize crystals in the gathering list, preserving user's configured order
+                .Select(s => (Slot: s, Order: crystalOrder.TryGetValue(s.Item.ItemId, out var order) ? order : int.MaxValue))
                 .OrderBy(x => x.Order)
-                //Prioritize crystals with a lower amount in the inventory
+                //Prioritize crystals with a lower amount in the inventory (for non-listed crystals)
                 .ThenBy(x => x.Slot.Item.GetInventoryCount())
                 .Select(x => x.Slot)
                 .FirstOrDefault();

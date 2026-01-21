@@ -79,13 +79,13 @@ namespace GatherBuddy.AutoGather.Lists
                 DoUpdate();
 
             Svc.Log.Verbose($"Nearby nodes: {string.Join(", ", nearbyNodes.Select(x => x.ToString("X8")))}.");
-            IEnumerable<GatherTarget> nearbyItems = [];
-            nearbyItems = this.Any(n => !n.Node?.Times.AlwaysUp() ?? false)
-                ? [this.First(n => n.Time.InRange(AutoGather.AdjustedServerTime))]
-                : this.Where(i => i.Node?.WorldPositions.Keys.Any(nearbyNodes.Contains) ?? false);
+            // For timed nodes we always prioritize the next in-range window.
+            if (this.Any(n => !n.Node?.Times.AlwaysUp() ?? false))
+                return [this.First(n => n.Time.InRange(AutoGather.AdjustedServerTime))];
 
-            Svc.Log.Verbose($"Nearby items: ({nearbyItems.Count()}): {string.Join(", ", nearbyItems.Select(x => x.Item.Name))}.");
-            return nearbyItems.Any() ? nearbyItems : _gatherableItems.Where(NeedsGathering);
+            // For always-up nodes, we must strictly follow the user's Auto Gather list order.
+            // Location can only be used to pick the best node *for the same item*, not reorder items.
+            return _gatherableItems.Where(NeedsGathering);
         }
 
         /// <summary>
@@ -155,6 +155,13 @@ namespace GatherBuddy.AutoGather.Lists
             var       territoryId        = _lastTerritoryId;
             DateTime? nextAllowance      = null;
 
+            // Preserve the user's configured Auto Gather list order (item id -> index).
+            var itemOrder = new Dictionary<uint, int>();
+            var itemOrderIdx = 0;
+            foreach (var (item, _) in _listsManager.ActiveItems)
+                if (itemOrder.TryAdd(item.ItemId, itemOrderIdx))
+                    itemOrderIdx++;
+
             var nodes = _listsManager.ActiveItems
                 // Filter out items that are already gathered.
                 .Where(NeedsGathering)
@@ -201,7 +208,10 @@ namespace GatherBuddy.AutoGather.Lists
                     .First()
                 )
                 // Prioritize timed nodes first.
-                .OrderBy(x => x.Time == TimeInterval.Always);
+                .OrderBy(x => x.Time == TimeInterval.Always)
+                // Always enforce the user's Auto Gather list order as the primary item ordering.
+                // Any location-based sorting must only affect tie-breaks (same item / not in list).
+                .ThenBy(x => itemOrder.TryGetValue(x.Item.ItemId, out var idx) ? idx : int.MaxValue);
 
             var fish = _listsManager.ActiveFish
                 .Where(NeedsGathering)
