@@ -798,7 +798,9 @@ public partial class Interface
         {
             DrawCheckbox("啟用位置範圍防卡死",
                 "當角色在指定範圍內持續指定時間，自動觸發防卡死處理。\n" +
-                "每次開始採集時會重置並以當前位置為中心劃出範圍。",
+                "每次開始採集時會重置並以當前位置為中心劃出範圍。\n" +
+                "離開範圍會取消計時，重新進入才會重新開始。\n" +
+                "僅在有導航目標時才會觸發，避免誤傷正常待機。",
                 GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck,
                 b => GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck = b);
         }
@@ -815,6 +817,7 @@ public partial class Interface
                 GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius = radius;
                 GatherBuddy.Config.Save();
             }
+
             ImGuiUtil.HoverTooltip("當角色持續在此範圍內活動超過指定時間，將觸發防卡死處理。");
 
             var timeSeconds = GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds;

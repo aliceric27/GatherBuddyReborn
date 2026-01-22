@@ -50,6 +50,9 @@ namespace GatherBuddy.AutoGather
         private ILocation? CurrentFarNodeLocation;
         public bool LureSuccess { get; private set; } = false;
 
+        // Tracks IsGathering state transitions for features that need to reset on gather start.
+        private bool _wasGathering = false;
+
         public static IReadOnlyList<InventoryType> InventoryTypes { get; } =
         [
             InventoryType.Inventory1,

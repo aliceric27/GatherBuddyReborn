@@ -5,47 +5,74 @@ namespace GatherBuddy.AutoGather.Helpers;
 
 public class PositionStuckTracker
 {
-    private Vector3? _startPosition = null;
-    private DateTime? _stuckStartTime = null;
-    private bool _isTracking = false;
+    private Vector3? _startPosition    = null;
+    private DateTime? _enteredRangeAt  = null;
+    private bool _isTracking           = false;
+    private bool _isInRange            = false;
 
     public void StartTracking(Vector3 position)
     {
         _startPosition = position;
-        _stuckStartTime = DateTime.UtcNow;
+        _enteredRangeAt = DateTime.UtcNow;
         _isTracking = true;
+        _isInRange  = true;
         GatherBuddy.Log.Verbose($"位置防卡死追蹤開始: {position}");
     }
 
     public void Reset()
     {
         _startPosition = null;
-        _stuckStartTime = null;
+        _enteredRangeAt = null;
         _isTracking = false;
+        _isInRange  = false;
     }
 
     public bool ShouldTrigger(Vector3 currentPosition, float radius, int timeSeconds)
     {
-        if (!_isTracking || _startPosition == null || _stuckStartTime == null)
-            return false;
+        UpdateRangeState(currentPosition, radius);
+        return ShouldTrigger(timeSeconds);
+    }
 
-        float distance = Vector3.Distance(currentPosition, _startPosition.Value);
+    /// <summary>
+    /// Updates whether the player is currently within the tracked range.
+    /// Call this every tick so GetTimeInRange() stays accurate.
+    /// </summary>
+    public void UpdateRangeState(Vector3 currentPosition, float radius)
+    {
+        if (!_isTracking || _startPosition == null)
+            return;
 
+        var distance = Vector3.Distance(currentPosition, _startPosition.Value);
         if (distance > radius)
         {
-            _stuckStartTime = DateTime.UtcNow;
-            return false;
+            _isInRange = false;
+            return;
         }
 
-        var elapsedSeconds = (DateTime.UtcNow - _stuckStartTime.Value).TotalSeconds;
-        return elapsedSeconds >= timeSeconds;
+        if (!_isInRange)
+        {
+            _isInRange      = true;
+            _enteredRangeAt = DateTime.UtcNow;
+        }
+        else if (_enteredRangeAt == null)
+        {
+            _enteredRangeAt = DateTime.UtcNow;
+        }
     }
+
+    /// <summary>
+    /// Returns true if the player has been continuously within the range for at least timeSeconds.
+    /// Requires UpdateRangeState to be called periodically to keep _isInRange accurate.
+    /// </summary>
+    public bool ShouldTrigger(int timeSeconds)
+        => _isTracking && _isInRange && GetTimeInRange() >= timeSeconds;
 
     public double GetTimeInRange()
     {
-        if (_stuckStartTime == null)
+        if (!_isTracking || !_isInRange || _enteredRangeAt == null)
             return 0;
-        return (DateTime.UtcNow - _stuckStartTime.Value).TotalSeconds;
+
+        return (DateTime.UtcNow - _enteredRangeAt.Value).TotalSeconds;
     }
 
     public bool IsTracking => _isTracking;
