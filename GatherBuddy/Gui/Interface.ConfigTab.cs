@@ -818,6 +818,9 @@ public partial class Interface
                 GatherBuddy.Config.Save();
             }
 
+            // 當拖動 slider 時，在角色周圍顯示範圍圓圈。
+            GatherBuddy.AutoGather.Overlay?.SetShowRadiusCircle(ImGui.IsItemActive(), radius);
+ 
             ImGuiUtil.HoverTooltip("當角色持續在此範圍內活動超過指定時間，將觸發防卡死處理。");
 
             var timeSeconds = GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds;

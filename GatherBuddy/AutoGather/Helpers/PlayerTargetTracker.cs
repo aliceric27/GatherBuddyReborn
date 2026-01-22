@@ -75,4 +75,14 @@ public class PlayerTargetTracker
         _evasionPending = false;
         _evasionInProgress = false;
     }
+
+    /// <summary>
+    /// 取得已被選中的時間（秒）
+    /// </summary>
+    public double GetTargetedTime()
+    {
+        if (_targetedSince == null)
+            return 0;
+        return (DateTime.UtcNow - _targetedSince.Value).TotalSeconds;
+    }
 }

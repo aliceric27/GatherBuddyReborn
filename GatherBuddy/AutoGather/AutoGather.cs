@@ -56,6 +56,8 @@ namespace GatherBuddy.AutoGather
             Svc.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, "Gathering", OnGatheringFinalize);
             _plugin.FishRecorder.Parser.CaughtFish += OnFishCaught;
 
+            _overlay = new AutoGatherOverlay(this);
+
         }
 
         public Fish? LastCaughtFish { get; private set; }
@@ -124,8 +126,11 @@ namespace GatherBuddy.AutoGather
         private readonly PlayerTargetTracker   _playerTargetTracker = new();
         private readonly PositionStuckTracker  _positionStuckTracker = new();
 
+        private AutoGatherOverlay? _overlay;
+
         public PositionStuckTracker PositionStuckTracker => _positionStuckTracker;
         public PlayerTargetTracker PlayerTargetTracker => _playerTargetTracker;
+        public AutoGatherOverlay? Overlay => _overlay;
 
 
 
@@ -1200,6 +1205,8 @@ namespace GatherBuddy.AutoGather
 
         public void Dispose()
         {
+            _overlay?.Dispose();
+            _overlay = null;
 
             _advancedUnstuck.Dispose();
             NodeTracker.Dispose();
