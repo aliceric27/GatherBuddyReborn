@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -17,9 +17,9 @@ public partial class Configuration : IPluginConfiguration
     public int Version { get; set; } = 6;
 
     // Set Names
-    public string BotanistSetName { get; set; } = "园艺工";
-    public string MinerSetName    { get; set; } = "采矿工";
-    public string FisherSetName   { get; set; } = "捕鱼人";
+    public string BotanistSetName { get; set; } = "園藝工";
+    public string MinerSetName    { get; set; } = "採礦工";
+    public string FisherSetName   { get; set; } = "捕魚人";
 
     // formats
     public string IdentifiedGatherableFormat { get; set; } = DefaultIdentifiedGatherableFormat;

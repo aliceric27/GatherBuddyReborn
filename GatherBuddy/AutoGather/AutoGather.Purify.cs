@@ -54,7 +54,7 @@ namespace GatherBuddy.AutoGather
 
         private unsafe void ReduceItems(bool reduceAll)
         {
-            AutoStatus = "精选物品";
+            AutoStatus = "精選物品";
             var delay = (int)GatherBuddy.Config.AutoGatherConfig.ExecutionDelay;
             TaskManager.Enqueue(StopNavigation);
             TaskManager.Enqueue(YesAlready.Lock);

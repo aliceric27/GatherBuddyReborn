@@ -786,12 +786,12 @@ public partial class Interface
 
             var tmp = GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds;
             ImGui.SetNextItemWidth(SetInputWidth);
-            if (ImGui.DragInt("选中持续时间 (秒)", ref tmp, 0.5f, 1, 120))
+            if (ImGui.DragInt("選中持續時間 (秒)", ref tmp, 0.5f, 1, 120))
             {
                 GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds = Math.Clamp(tmp, 1, 120);
                 GatherBuddy.Config.Save();
             }
-            ImGuiUtil.HoverTooltip("其他玩家选中你多长时间 (1-120 秒) 后触发躲避。");
+            ImGuiUtil.HoverTooltip("其他玩家選中你多長時間 (1-120 秒) 後觸發躲避。");
         }
     }
 
