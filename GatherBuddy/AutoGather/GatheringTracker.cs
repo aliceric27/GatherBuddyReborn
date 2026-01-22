@@ -262,7 +262,7 @@ namespace GatherBuddy.AutoGather
 
             void LogUnexpectedValue(Span<AtkValue> values, int n)
             {
-                GatherBuddy.Log.Debug($"{GetType()}: 未知采集界面参数 {n}: {values[n].ToString()}.");
+                GatherBuddy.Log.Debug($"{GetType()}: 未知採集介面參數 {n}: {values[n].ToString()}.");
             }
         }
 

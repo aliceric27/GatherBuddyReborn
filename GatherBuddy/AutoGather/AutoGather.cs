@@ -140,7 +140,7 @@ namespace GatherBuddy.AutoGather
 
                 if (!value)
                 {
-                    AutoStatus = "空闲中...";
+                    AutoStatus = "空閒中...";
                     TaskManager.Abort();
                     YesAlready.Unlock();
 
@@ -194,7 +194,7 @@ namespace GatherBuddy.AutoGather
             }
             else
             {
-                GatherBuddy.Log.Warning("未安装或启用 Lifestream");
+                GatherBuddy.Log.Warning("未安裝或啟用 Lifestream");
                 return false;
             }
         }
@@ -226,7 +226,7 @@ namespace GatherBuddy.AutoGather
                     // 中止條件：副本中無法傳送
                     if (Dalamud.Conditions[ConditionFlag.BoundByDuty])
                     {
-                        AutoStatus = "检测到玩家选中 - 副本中无法传送，已取消躲避";
+                        AutoStatus = "偵測到玩家選中 - 副本中無法傳送，已取消躲避";
                         _playerTargetTracker.Reset();
                         return;
                     }
@@ -234,14 +234,14 @@ namespace GatherBuddy.AutoGather
                     // 檢查 Lifestream 是否仍在工作中
                     if (Lifestream.Enabled && Lifestream.IsBusy())
                     {
-                        AutoStatus = "检测到玩家选中 - 正在返回旅馆...";
+                        AutoStatus = "偵測到玩家選中 - 正在返回旅館...";
                         return; // 等待 Lifestream 完成
                     }
 
                     // Lifestream 不再 busy，檢查 TaskManager 是否有等待的任務
                     if (TaskManager.IsBusy)
                     {
-                        AutoStatus = "检测到玩家选中 - 正在返回旅馆...";
+                        AutoStatus = "偵測到玩家選中 - 正在返回旅館...";
                         return; // 等待 TaskManager 完成
                     }
 
@@ -256,7 +256,7 @@ namespace GatherBuddy.AutoGather
                     // 如果正在採集，先關閉採集視窗（只在 TaskManager 空閒時執行，避免重複 enqueue）
                     if (IsGathering)
                     {
-                        AutoStatus = "检测到玩家选中 - 正在关闭采集窗口...";
+                        AutoStatus = "偵測到玩家選中 - 正在關閉採集視窗...";
                         if (!TaskManager.IsBusy)
                             CloseGatheringAddons();
                         return; // 等待下一 tick 確認已關閉
@@ -265,14 +265,14 @@ namespace GatherBuddy.AutoGather
                     // 確認可以行動後再執行躲避
                     if (!CanAct)
                     {
-                        AutoStatus = "检测到玩家选中 - 等待可行动...";
+                        AutoStatus = "偵測到玩家選中 - 等待可行動...";
                         return;
                     }
 
                     // 檢查是否在副本中（無法傳送）
                     if (Dalamud.Conditions[ConditionFlag.BoundByDuty])
                     {
-                        AutoStatus = "检测到玩家选中 - 副本中无法传送";
+                        AutoStatus = "偵測到玩家選中 - 副本中無法傳送";
                         _playerTargetTracker.Reset();
                         return;
                     }
@@ -280,11 +280,11 @@ namespace GatherBuddy.AutoGather
                     // 檢查 Lifestream 狀態：busy 時等待，不要進入 fallback
                     if (Lifestream.Enabled && Lifestream.IsBusy())
                     {
-                        AutoStatus = "检测到玩家选中 - 等待传送完成...";
+                        AutoStatus = "偵測到玩家選中 - 等待傳送完成...";
                         return;
                     }
 
-                    var message = "检测到玩家选中 - 正在躲避返回旅馆...";
+                    var message = "偵測到玩家選中 - 正在躲避返回旅館...";
                     GatherBuddy.Log.Information(message);
                     Communicator.Print($"[GatherBuddy] {message}");
                     Svc.Toasts.ShowNormal(message);
@@ -330,14 +330,14 @@ namespace GatherBuddy.AutoGather
             {
                 if (!NavReady)
                 {
-                    AutoStatus = "等待导航中...";
+                    AutoStatus = "等待導航中...";
                     return;
                 }
             }
             catch (Exception e)
             {
                 //GatherBuddy.Log.Error(e.Message);
-                AutoStatus = "未安装或启用 vnavmesh";
+                AutoStatus = "未安裝或啟用 vnavmesh";
                 return;
             }
 
@@ -350,20 +350,20 @@ namespace GatherBuddy.AutoGather
             if (!_homeWorldWarning && !Functions.OnHomeWorld())
             {
                 _homeWorldWarning = true;
-                Communicator.PrintError("当前不在原始服务器, 部分物品无法采集");
+                Communicator.PrintError("目前不在原始伺服器, 部分物品無法採集");
             }
 
             if (DiscipleOfLand.NextTreasureMapAllowance == DateTime.MinValue)
             {
                 //Wait for timer refresh
-                AutoStatus = "刷新采集时钟中...";
+                AutoStatus = "重新整理採集時鐘中...";
                 DiscipleOfLand.RefreshNextTreasureMapAllowance();
                 return;
             }
 
             if (!CanAct && !_diademQueuingInProgress)
             {
-                AutoStatus = Dalamud.Conditions[ConditionFlag.Gathering] ? "采集中..." : "当前无法行动, 等待中...";
+                AutoStatus = Dalamud.Conditions[ConditionFlag.Gathering] ? "採集中..." : "目前無法行動, 等待中...";
                 return;
             }
 
@@ -380,7 +380,7 @@ namespace GatherBuddy.AutoGather
                 }
                 else
                 {
-                    AbortAutoGather("背包物品已满");
+                    AbortAutoGather("背包物品已滿");
                 }
 
                 return;
@@ -390,7 +390,7 @@ namespace GatherBuddy.AutoGather
              && !GatherBuddy.Config.AutoGatherConfig.FishDataCollection)
             {
                 Communicator.PrintError(
-                    "自动采集列表中包含鱼类, 但未开启捕鱼数据采集, 因此无法继续自动采集, 请启用捕鱼数据收集, 或从自动采集列表中删除所有鱼类");
+                    "自動採集清單中包含魚類, 但未開啟捕魚資料採集, 因此無法繼續自動採集, 請啟用捕魚資料收集, 或從自動採集清單中刪除所有魚類");
                 AbortAutoGather();
                 return;
             }
@@ -408,7 +408,7 @@ namespace GatherBuddy.AutoGather
                 if (!GatherBuddy.Config.AutoGatherConfig.DoGathering)
                     return;
 
-                AutoStatus = "采集中...";
+                AutoStatus = "採集中...";
                 StopNavigation();
 
                 var fish = _activeItemList.GetNextOrDefault(new List<uint>()).Where(g => g.Fish != null);
@@ -436,7 +436,7 @@ namespace GatherBuddy.AutoGather
                 catch (NoCollectableActionsException)
                 {
                     Communicator.PrintError(
-                        "当前无可用的收藏品价值上升技能, 请检查设置中相关技能的启用情况");
+                        "目前無可用的收藏品價值上升技能, 請檢查設定中相關技能的啟用情況");
                     AbortAutoGather();
                 }
 
@@ -457,13 +457,13 @@ namespace GatherBuddy.AutoGather
                 case AdvancedUnstuckCheckResult.Wait: return;
                 case AdvancedUnstuckCheckResult.Fail:
                     StopNavigation();
-                    AutoStatus = $"尝试进一步脱离卡死";
+                    AutoStatus = $"嘗試進一步脫離卡死";
                     return;
             }
 
             if (isPathGenerating)
             {
-                AutoStatus = "正在生成路径...";
+                AutoStatus = "正在生成路徑...";
                 return;
             }
 
@@ -515,7 +515,7 @@ namespace GatherBuddy.AutoGather
                     _plugin.Ipc.AutoGatherWaiting();
                 }
 
-                AutoStatus = "无待采集物品";
+                AutoStatus = "無待採集物品";
                 return;
             }
 
@@ -548,13 +548,13 @@ namespace GatherBuddy.AutoGather
                 {
                     if (aetheryte.Position.DistanceToPlayer() > 10)
                     {
-                        AutoStatus = "向以太之光移动中...";
+                        AutoStatus = "向以太之光移動中...";
                         if (!isPathing && !isPathGenerating)
                             Navigate(aetheryte.Position, false);
                     }
                     else if (!Lifestream.IsBusy())
                     {
-                        AutoStatus = "传送中...";
+                        AutoStatus = "傳送中...";
                         StopNavigation();
                         string name = string.Empty;
                         switch (territoryId)
@@ -651,9 +651,9 @@ namespace GatherBuddy.AutoGather
              && GatherBuddy.GameData.Aetherytes[forcedAetheryte.AetheryteId].Territory.Id == territoryId)
             {
                 if (territoryId == 478 && !Lifestream.Enabled)
-                    AutoStatus = $"启用并安装 Lifestream 或手动传送至 {next.First().Location.Territory.Name}";
+                    AutoStatus = $"啟用並安裝 Lifestream 或手動傳送至 {next.First().Location.Territory.Name}";
                 else
-                    AutoStatus = "需要手动传送";
+                    AutoStatus = "需要手動傳送";
                 return;
             }
 
@@ -666,7 +666,7 @@ namespace GatherBuddy.AutoGather
             {
                 if (Dalamud.Conditions[ConditionFlag.BoundByDuty] && !Functions.InTheDiadem())
                 {
-                    AutoStatus = "无法在副本任务中传送";
+                    AutoStatus = "無法在副本任務中傳送";
                     return;
                 }
                 else if (Functions.InTheDiadem())
@@ -675,7 +675,7 @@ namespace GatherBuddy.AutoGather
                     return;
                 }
 
-                AutoStatus = "传送中...";
+                AutoStatus = "傳送中...";
                 StopNavigation();
 
                 if (!MoveToTerritory(next.First().Location))
@@ -710,7 +710,7 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            AutoStatus = "自动采集流程意外损坏, 请上报此问题";
+            AutoStatus = "自動採集流程意外損壞, 請回報此問題";
             return;
         }
 
@@ -800,20 +800,20 @@ namespace GatherBuddy.AutoGather
 
             if (closestTargetableNode != null)
             {
-                AutoStatus = "正在移动至采集点...";
+                AutoStatus = "正在移動至採集點...";
                 var targetItem = next.First(ti => ti.Node != null && ti.Node.WorldPositions.ContainsKey(closestTargetableNode.DataId))
                     .Gatherable;
                 MoveToCloseNode(closestTargetableNode, targetItem, config);
                 return;
             }
 
-            AutoStatus = "正在移动至较远节点...";
+            AutoStatus = "正在移動至較遠節點...";
 
             if (CurrentDestination != default)
             {
                 var currentNode = visibleNodes.FirstOrDefault(o => o.Position == CurrentDestination);
                 if (currentNode != null && !currentNode.IsTargetable)
-                    GatherBuddy.Log.Verbose($"下一节点距离较远, 当前尚不可选中, 距离: {currentNode.Position.DistanceToPlayer()}.");
+                    GatherBuddy.Log.Verbose($"下一節點距離較遠, 目前尚不可選中, 距離: {currentNode.Position.DistanceToPlayer()}.");
 
                 //It takes some time (roundtrip to the server) before a node becomes targetable after it becomes visible,
                 //so we need to delay excluding it. But instead of measuring time, we use distance, since character is traveling at a constant speed.
@@ -823,7 +823,7 @@ namespace GatherBuddy.AutoGather
 
                 if (CurrentDestination.DistanceToPlayer() < 50)
                 {
-                    GatherBuddy.Log.Verbose("下一节点距离较远, 当前尚不可选中, 已切换至另一节点");
+                    GatherBuddy.Log.Verbose("下一節點距離較遠, 目前尚不可選中, 已切換至另一節點");
                 }
                 else
                 {
@@ -841,7 +841,7 @@ namespace GatherBuddy.AutoGather
                 // marker not yet loaded on game
                 if (pos == null || timedNode.Time.Start > GatherBuddy.Time.ServerTime.AddSeconds(-8))
                 {
-                    AutoStatus = "等待标点出现中";
+                    AutoStatus = "等待標點出現中";
                     return;
                 }
 
@@ -863,7 +863,7 @@ namespace GatherBuddy.AutoGather
                 if (selectedFarNode == default)
                 {
                     FarNodesSeenSoFar.Clear();
-                    GatherBuddy.Log.Verbose($"当前选择节点为空, 较远节点筛选器已被清空");
+                    GatherBuddy.Log.Verbose($"目前選擇節點為空, 較遠節點篩選器已被清空");
                     return;
                 }
             }
@@ -970,7 +970,7 @@ namespace GatherBuddy.AutoGather
             };
             if (level < Actions.Collect.MinLevel)
             {
-                Communicator.PrintError("列表内存在当前无法采集的收藏品, 原因: 等级不足");
+                Communicator.PrintError("清單內存在目前無法採集的收藏品, 原因: 等級不足");
                 return false;
             }
 
@@ -983,7 +983,7 @@ namespace GatherBuddy.AutoGather
 
             if (questId != 0 && !QuestManager.IsQuestComplete(questId))
             {
-                Communicator.PrintError("列表内存在尚未解锁的收藏品");
+                Communicator.PrintError("清單內存在尚未解鎖的收藏品");
                 var sheet      = Dalamud.GameData.GetExcelSheet<Lumina.Excel.Sheets.Quest>()!;
                 var row        = sheet.GetRow(questId)!;
                 var loc        = row.IssuerLocation.Value!;
@@ -1004,7 +1004,7 @@ namespace GatherBuddy.AutoGather
                     .Add(RawPayload.LinkTerminator)
                     .AddUiGlowOff()
                     .AddUiForegroundOff()
-                    .AddText(" 任务解锁, 开始地点: ")
+                    .AddText(" 任務解鎖, 開始地點: ")
                     .AddUiForeground(0x0225)
                     .AddUiGlow(0x0226)
                     .Add(mapPayload)
@@ -1036,7 +1036,7 @@ namespace GatherBuddy.AutoGather
             };
             if (string.IsNullOrEmpty(set))
             {
-                Communicator.PrintError($"{job} 不存在任何关联套装");
+                Communicator.PrintError($"{job} 不存在任何關聯套裝");
                 return false;
             }
 

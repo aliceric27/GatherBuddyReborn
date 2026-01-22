@@ -771,8 +771,8 @@ public partial class Interface
 
         public static void DrawPlayerTargetEvasionBox()
         {
-            DrawCheckbox("被玩家选中时自动躲避",
-                "当其他玩家选中你一段时间后, 自动停止自动采集并返回旅馆。",
+            DrawCheckbox("被玩家選中時自動躲避",
+                "當其他玩家選中你一段時間後, 自動停止自動採集並返回旅館。",
                 GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion,
                 b => GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion = b);
             ImGui.SameLine();

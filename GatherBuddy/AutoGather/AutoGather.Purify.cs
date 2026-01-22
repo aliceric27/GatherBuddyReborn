@@ -19,7 +19,7 @@ namespace GatherBuddy.AutoGather
             {
                 GatherBuddy.Config.AutoGatherConfig.DoReduce = false;
                 Communicator.PrintError(
-                    "[GatherBuddyReborn] 自动精选已启用，但角色未解锁精选技能。功能已禁用");
+                    "[GatherBuddyReborn] 自動精選已啟用，但角色未解鎖精選技能。功能已停用");
                 return false;
             }
 

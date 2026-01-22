@@ -189,7 +189,7 @@ public partial class Interface
 
     private void DrawAutoGatherListsLine()
     {
-        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Copy.ToIconString(), IconButtonSize, "复制当前自动采集列表至剪贴板",
+        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Copy.ToIconString(), IconButtonSize, "複製目前自動採集清單至剪貼簿",
                 _autoGatherListsCache.Selector.Current == null, true))
         {
             var list = _autoGatherListsCache.Selector.Current!;
@@ -197,18 +197,18 @@ public partial class Interface
             {
                 var s = new AutoGatherList.Config(list).ToBase64();
                 ImGui.SetClipboardText(s);
-                Communicator.PrintClipboardMessage("自动采集列表 ", list.Name);
+                Communicator.PrintClipboardMessage("自動採集清單 ", list.Name);
             }
             catch (Exception e)
             {
-                Communicator.PrintClipboardMessage("自动采集列表 ", list.Name, e);
+                Communicator.PrintClipboardMessage("自動採集清單 ", list.Name, e);
             }
         }
 
         if (GatherBuddy.AutoGather.ArtisanExporter.ArtisanAssemblyEnabled)
         {
-            if (ImGuiUtil.DrawDisabledButton("从 Artisan 导入", Vector2.Zero,
-                    "导入 Artisan 的材料清单至 GBR 中",
+            if (ImGuiUtil.DrawDisabledButton("從 Artisan 匯入", Vector2.Zero,
+                    "匯入 Artisan 的材料清單至 GBR 中",
                     !GatherBuddy.AutoGather.ArtisanExporter.ArtisanAssemblyEnabled))
             {
                 ImGui.OpenPopup($"artisanImport");
@@ -231,11 +231,11 @@ public partial class Interface
                     {
                         if (ImGui.Selectable($"{kvp.Value}##{kvp.Key}"))
                         {
-                            Communicator.Print($"正在从 Artisan 导入 '{kvp.Value}'...");
+                            Communicator.Print($"正在從 Artisan 匯入 '{kvp.Value}'...");
                             GatherBuddy.AutoGather.ArtisanExporter.StartArtisanImport(kvp);
                         }
 
-                        ImGuiUtil.HoverTooltip($"{kvp.Value} ({kvp.Key})\n(点击以导入至新的自动采集列表中)");
+                        ImGuiUtil.HoverTooltip($"{kvp.Value} ({kvp.Key})\n(點擊以匯入至新的自動採集清單中)");
                     }
                 }
 
@@ -292,11 +292,11 @@ public partial class Interface
 
         ImGui.SetCursorPosX(ImGui.GetWindowSize().X - 50);
         const string agHelpText =
-            "若未启用按位置排序配置选项，物品将按启用列表顺序及列表内项目顺序进行收集。\n"
-          + "可通过拖拽操作调整列表顺序。\n"
-          + "可在特定列表内拖拽项目调整其顺序。\n"
-          + "可将选择器中的项目拖拽至其他列表实现跨列表转移。\n"
-          + "在收集窗口中，Ctrl + 右键点击项目可将其从所属列表中删除。";
+            "若未啟用按位置排序設定選項，物品將按啟用清單順序及清單內項目順序進行收集。\n"
+          + "可透過拖曳操作調整清單順序。\n"
+          + "可在特定清單內拖曳項目調整其順序。\n"
+          + "可將選擇器中的項目拖曳至其他清單實現跨清單轉移。\n"
+          + "在收集視窗中，Ctrl + 右鍵點擊項目可將其從所屬清單中刪除。";
 
         ImGuiEx.InfoMarker(agHelpText,                    null, FontAwesomeIcon.InfoCircle.ToIconString(), false);
     }
@@ -311,14 +311,14 @@ public partial class Interface
             _plugin.AutoGatherListsManager.ChangeDescription(list, newDesc);
 
         var tmp = list.Enabled;
-        if (ImGui.Checkbox("启用##list", ref tmp) && tmp != list.Enabled)
+        if (ImGui.Checkbox("啟用##list", ref tmp) && tmp != list.Enabled)
             _plugin.AutoGatherListsManager.ToggleList(list);
 
         ImGui.SameLine();
-        ImGuiUtil.Checkbox("备选##list",
-            "正常情况下, 不会去采集备选列表内的任何物品\n"
-          + "仅当目标采集点不包含任意采集列表内所指定的物品, 又或者是采集点内列表所指定物品均已达到数量要求时,\n"
-          + "才会尝试去采集备选列表内的物品.", 
+        ImGuiUtil.Checkbox("備選##list",
+            "正常情況下, 不會去採集備選清單內的任何物品\n"
+          + "僅當目標採集點不包含任意採集清單內所指定的物品, 又或者是採集點內清單所指定物品均已達到數量要求時,\n"
+          + "才會嘗試去採集備選清單內的物品.", 
             list.Fallback, (v) => _plugin.AutoGatherListsManager.SetFallback(list, v));
 
         ImGui.NewLine();
@@ -381,7 +381,7 @@ public partial class Interface
         if (changeIndex >= 0)
             _plugin.AutoGatherListsManager.ChangeItem(list, gatherables[changeItemIndex], changeIndex);
 
-        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Plus.ToIconString(), IconButtonSize, "追加该物品至列表", false,
+        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Plus.ToIconString(), IconButtonSize, "追加該物品至清單", false,
                 true))
             _plugin.AutoGatherListsManager.AddItem(list, gatherables[_autoGatherListsCache.NewGatherableIdx]);
 
@@ -396,7 +396,7 @@ public partial class Interface
     private void DrawAutoGatherTab()
     {
         using var id  = ImRaii.PushId("AutoGatherLists");
-        using var tab = ImRaii.TabItem("自动采集");
+        using var tab = ImRaii.TabItem("自動採集");
 
         if (!tab)
             return;
@@ -406,7 +406,7 @@ public partial class Interface
         _autoGatherListsCache.Selector.Draw(SelectorWidth);
         ImGui.SameLine();
 
-        ItemDetailsWindow.Draw("列表详情", DrawAutoGatherListsLine, () =>
+        ItemDetailsWindow.Draw("清單詳情", DrawAutoGatherListsLine, () =>
         {
             if (_autoGatherListsCache.Selector.Current != null)
                 DrawAutoGatherList(_autoGatherListsCache.Selector.Current);

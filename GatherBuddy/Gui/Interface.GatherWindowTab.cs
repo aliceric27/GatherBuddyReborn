@@ -115,7 +115,7 @@ public partial class Interface
 
     private void DrawGatherWindowPresetHeaderLine()
     {
-        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Copy.ToIconString(), IconButtonSize, "复制当前采集窗口预设至剪贴板",
+        if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Copy.ToIconString(), IconButtonSize, "複製目前採集視窗預設至剪貼簿",
                 _gatherWindowCache.Selector.Current == null, true))
         {
             var preset = _gatherWindowCache.Selector.Current!;
@@ -123,15 +123,15 @@ public partial class Interface
             {
                 var s = new GatherWindowPreset.Config(preset).ToBase64();
                 ImGui.SetClipboardText(s);
-                Communicator.PrintClipboardMessage("采集窗口预设 ", preset.Name);
+                Communicator.PrintClipboardMessage("採集視窗預設 ", preset.Name);
             }
             catch (Exception e)
             {
-                Communicator.PrintClipboardMessage("采集窗口预设 ", preset.Name, e);
+                Communicator.PrintClipboardMessage("採集視窗預設 ", preset.Name, e);
             }
         }
 
-        if (ImGuiUtil.DrawDisabledButton("创建闹钟", Vector2.Zero, "新建一个对应该采集窗口预设的闹钟", _gatherWindowCache.Selector.Current == null))
+        if (ImGuiUtil.DrawDisabledButton("建立鬧鐘", Vector2.Zero, "新建一個對應該採集視窗預設的鬧鐘", _gatherWindowCache.Selector.Current == null))
         {
             var preset = new AlarmGroup(_gatherWindowCache.Selector.Current!);
             _plugin.AlarmManager.AddGroup(preset);
@@ -148,7 +148,7 @@ public partial class Interface
             _plugin.GatherWindowManager.ChangeDescription(preset, newDesc);
 
         var tmp = preset.Enabled;
-        if (ImGui.Checkbox("启用##preset", ref tmp) && tmp != preset.Enabled)
+        if (ImGui.Checkbox("啟用##preset", ref tmp) && tmp != preset.Enabled)
             _plugin.GatherWindowManager.TogglePreset(preset);
 
         ImGui.NewLine();
@@ -162,7 +162,7 @@ public partial class Interface
             using var id    = ImRaii.PushId(i);
             using var group = ImRaii.Group();
             var       item  = preset.Items[i];
-            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString(), IconButtonSize, "从该预设中删除...", false,
+            if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString(), IconButtonSize, "從該預設中刪除...", false,
                     true))
                 _plugin.GatherWindowManager.RemoveItem(preset, i--);
 
@@ -179,7 +179,7 @@ public partial class Interface
         }
 
         if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Plus.ToIconString(), IconButtonSize,
-                "添加此物品至列表末尾...",
+                "新增此物品至清單末尾...",
                 preset.Items.Contains(GatherGroupCache.AllGatherables[_gatherWindowCache.NewGatherableIdx]), true))
             _plugin.GatherWindowManager.AddItem(preset, GatherGroupCache.AllGatherables[_gatherWindowCache.NewGatherableIdx]);
 
@@ -191,7 +191,7 @@ public partial class Interface
     private void DrawGatherWindowTab()
     {
         using var id  = ImRaii.PushId("GatherWindow");
-        using var tab = ImRaii.TabItem("采集窗口");
+        using var tab = ImRaii.TabItem("採集視窗");
 
         if (!tab)
             return;
@@ -199,7 +199,7 @@ public partial class Interface
         _gatherWindowCache.Selector.Draw(SelectorWidth);
         ImGui.SameLine();
 
-        ItemDetailsWindow.Draw("预设详情", DrawGatherWindowPresetHeaderLine, () =>
+        ItemDetailsWindow.Draw("預設詳情", DrawGatherWindowPresetHeaderLine, () =>
         {
             if (_gatherWindowCache.Selector.Current != null)
                 DrawGatherWindowPreset(_gatherWindowCache.Selector.Current);

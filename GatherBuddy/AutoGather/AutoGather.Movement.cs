@@ -28,16 +28,16 @@ namespace GatherBuddy.AutoGather
             TaskManager.Enqueue(StopNavigation);
 
             var am = ActionManager.Instance();
-            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐骑");
+            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐騎");
 
-            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.InFlight] && CanAct, 1000, "等待飞行状态取消");
-            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐骑 2");
-            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Mounted] && CanAct, 1000, "等待坐骑状态取消");
-            // 添加移动补偿防止其他玩家看到你浮空
-            TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) Chat.Instance.ExecuteCommand($"/automove on"); }, "下坐骑补偿 3"); 
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.InFlight] && CanAct, 1000, "等待飛行狀態取消");
+            TaskManager.Enqueue(() => { if (Dalamud.Conditions[ConditionFlag.Mounted]) am->UseAction(ActionType.Mount, 0); }, "下坐騎 2");
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.Mounted] && CanAct, 1000, "等待坐騎狀態取消");
+            // 添加移動補償防止其他玩家看到你浮空
+            TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) Chat.Instance.ExecuteCommand($"/automove on"); }, "下坐騎補償 3"); 
             TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) TaskManager.DelayNextImmediate(100); });
-            // 停止移动
-            TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) Chat.Instance.ExecuteCommand($"/automove off"); }, "下坐骑补偿 4"); 
+            // 停止移動
+            TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) Chat.Instance.ExecuteCommand($"/automove off"); }, "下坐騎補償 4"); 
             TaskManager.Enqueue(() => { if (!Dalamud.Conditions[ConditionFlag.Mounted]) TaskManager.DelayNextImmediate(400); });
         }
 
@@ -117,7 +117,7 @@ namespace GatherBuddy.AutoGather
                 else if (waitGP)
                 {
                     StopNavigation();
-                    AutoStatus = "等待采集力恢复中...";
+                    AutoStatus = "等待採集力恢復中...";
                 }
                 else
                 {
@@ -134,7 +134,7 @@ namespace GatherBuddy.AutoGather
                         // Check perception requirement before interacting with node
                         if (DiscipleOfLand.Perception < targetItem.GatheringData.PerceptionReq)
                         {
-                            Communicator.PrintError($"鉴别力不足, 所需: {targetItem.GatheringData.PerceptionReq}, 当前: {DiscipleOfLand.Perception}");
+                            Communicator.PrintError($"鑑別力不足, 所需: {targetItem.GatheringData.PerceptionReq}, 當前: {DiscipleOfLand.Perception}");
                             AbortAutoGather();
                             return;
                         }
@@ -210,7 +210,7 @@ namespace GatherBuddy.AutoGather
             CurrentDestination = destination;
             CurrentRotation    = angle;
             var correctedDestination = GetCorrectedDestination(CurrentDestination);
-            GatherBuddy.Log.Debug($"正在导航至 {destination} (关联点: {correctedDestination})");
+            GatherBuddy.Log.Debug($"正在導航至 {destination} (關聯點: {correctedDestination})");
 
             LastNavigationResult = VNavmesh.SimpleMove.PathfindAndMoveTo(correctedDestination, shouldFly);
         }
