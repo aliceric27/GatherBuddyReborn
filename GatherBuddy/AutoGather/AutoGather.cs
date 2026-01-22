@@ -220,21 +220,108 @@ namespace GatherBuddy.AutoGather
 
             if (GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion)
             {
+                // 如果躲避流程已在進行中，檢查狀態並等待完成
+                if (_playerTargetTracker.IsEvasionInProgress)
+                {
+                    // 中止條件：副本中無法傳送
+                    if (Dalamud.Conditions[ConditionFlag.BoundByDuty])
+                    {
+                        AutoStatus = "检测到玩家选中 - 副本中无法传送，已取消躲避";
+                        _playerTargetTracker.Reset();
+                        return;
+                    }
+
+                    // 檢查 Lifestream 是否仍在工作中
+                    if (Lifestream.Enabled && Lifestream.IsBusy())
+                    {
+                        AutoStatus = "检测到玩家选中 - 正在返回旅馆...";
+                        return; // 等待 Lifestream 完成
+                    }
+
+                    // Lifestream 不再 busy，檢查 TaskManager 是否有等待的任務
+                    if (TaskManager.IsBusy)
+                    {
+                        AutoStatus = "检测到玩家选中 - 正在返回旅馆...";
+                        return; // 等待 TaskManager 完成
+                    }
+
+                    // 如果都不 busy 但 InProgress 仍為 true，可能是異常狀態，重置
+                    GatherBuddy.Log.Warning("躲避流程異常結束，正在重置狀態");
+                    _playerTargetTracker.Reset();
+                    return;
+                }
+
                 if (_playerTargetTracker.ShouldEvade(GatherBuddy.Config.AutoGatherConfig.PlayerTargetEvasionSeconds))
                 {
+                    // 如果正在採集，先關閉採集視窗（只在 TaskManager 空閒時執行，避免重複 enqueue）
+                    if (IsGathering)
+                    {
+                        AutoStatus = "检测到玩家选中 - 正在关闭采集窗口...";
+                        if (!TaskManager.IsBusy)
+                            CloseGatheringAddons();
+                        return; // 等待下一 tick 確認已關閉
+                    }
+
+                    // 確認可以行動後再執行躲避
+                    if (!CanAct)
+                    {
+                        AutoStatus = "检测到玩家选中 - 等待可行动...";
+                        return;
+                    }
+
+                    // 檢查是否在副本中（無法傳送）
+                    if (Dalamud.Conditions[ConditionFlag.BoundByDuty])
+                    {
+                        AutoStatus = "检测到玩家选中 - 副本中无法传送";
+                        _playerTargetTracker.Reset();
+                        return;
+                    }
+
+                    // 檢查 Lifestream 狀態：busy 時等待，不要進入 fallback
+                    if (Lifestream.Enabled && Lifestream.IsBusy())
+                    {
+                        AutoStatus = "检测到玩家选中 - 等待传送完成...";
+                        return;
+                    }
+
                     var message = "检测到玩家选中 - 正在躲避返回旅馆...";
                     GatherBuddy.Log.Information(message);
                     Communicator.Print($"[GatherBuddy] {message}");
                     Svc.Toasts.ShowNormal(message);
 
-                    Enabled = false;
-                    _playerTargetTracker.Reset();
-                    var lifeStreamCmd = GatherBuddy.Config.AutoGatherConfig.LifestreamCommand;
-                    if (lifeStreamCmd.StartsWith("/li ", StringComparison.OrdinalIgnoreCase))
-                        lifeStreamCmd = lifeStreamCmd[4..];
-                    if (lifeStreamCmd.StartsWith("/li", StringComparison.OrdinalIgnoreCase))
-                        lifeStreamCmd = lifeStreamCmd[3..].TrimStart();
-                    Chat.Instance.ExecuteCommand($"/li {lifeStreamCmd}");
+                    // 停止導航
+                    StopNavigation();
+
+                    // 標記躲避流程開始（防止重入）
+                    _playerTargetTracker.MarkEvasionStarted();
+
+                    // 使用既有的 GoHome() 機制（有完整的 Lifestream 狀態處理）
+                    WentHome = false; // 確保 GoHome() 會執行
+                    if (GoHome())
+                    {
+                        // GoHome 成功排程，等待完成後再停用
+                        TaskManager.Enqueue(() =>
+                        {
+                            Enabled = false;
+                            _playerTargetTracker.Reset();
+                        });
+                    }
+                    else
+                    {
+                        // GoHome 失敗：Lifestream 未安裝/未啟用，回退到直接指令
+                        // 注意：此時 Lifestream.IsBusy() 已在上方檢查過，不會是 busy 狀態
+                        if (!Lifestream.Enabled)
+                        {
+                            var lifeStreamCmd = GatherBuddy.Config.AutoGatherConfig.LifestreamCommand.Trim();
+                            if (lifeStreamCmd.StartsWith("/li ", StringComparison.OrdinalIgnoreCase))
+                                lifeStreamCmd = lifeStreamCmd[4..];
+                            if (lifeStreamCmd.StartsWith("/li", StringComparison.OrdinalIgnoreCase))
+                                lifeStreamCmd = lifeStreamCmd[3..].TrimStart();
+                            Chat.Instance.ExecuteCommand($"/li {lifeStreamCmd}");
+                        }
+                        Enabled = false;
+                        _playerTargetTracker.Reset();
+                    }
                     return;
                 }
             }
