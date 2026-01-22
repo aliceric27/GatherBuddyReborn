@@ -84,6 +84,18 @@ namespace GatherBuddy.AutoGather
         public bool EnablePlayerTargetEvasion { get; set; } = false;
         public int PlayerTargetEvasionSeconds { get; set; } = 10;
 
+        // 位置範圍防卡死功能
+        public bool EnablePositionStuckCheck { get; set; } = false;
+        public float PositionStuckRadius { get; set; } = 50f;
+        public int PositionStuckTimeSeconds { get; set; } = 120;
+        public PositionUnstuckAction PositionStuckAction { get; set; } = PositionUnstuckAction.TeleportAetheryte;
+
+        public enum PositionUnstuckAction
+        {
+            TeleportAetheryte,  // 傳送到最近水晶並繼續採集
+            GoHome              // 直接回旅館並停止
+        }
+
         public enum SortingType
         {
             None = 0,

@@ -793,6 +793,52 @@ public partial class Interface
             }
             ImGuiUtil.HoverTooltip("其他玩家選中你多長時間 (1-120 秒) 後觸發躲避。");
         }
+
+        public static void DrawPositionStuckCheckBox()
+        {
+            DrawCheckbox("啟用位置範圍防卡死",
+                "當角色在指定範圍內持續指定時間，自動觸發防卡死處理。\n" +
+                "每次開始採集時會重置並以當前位置為中心劃出範圍。",
+                GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck,
+                b => GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck = b);
+        }
+
+        public static void DrawPositionStuckSettings()
+        {
+            if (!GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck)
+                return;
+
+            var radius = GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.SliderFloat("偵測範圍 (yalms)", ref radius, 10f, 200f, "%.0f"))
+            {
+                GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius = radius;
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("當角色持續在此範圍內活動超過指定時間，將觸發防卡死處理。");
+
+            var timeSeconds = GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.SliderInt("觸發時間 (秒)", ref timeSeconds, 30, 600))
+            {
+                GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds = timeSeconds;
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("在範圍內持續多久後觸發防卡死處理 (30-600 秒)。");
+
+            var actionIndex = (int)GatherBuddy.Config.AutoGatherConfig.PositionStuckAction;
+            var actions = new[] { "傳送到最近水晶並繼續", "直接回旅館並停止" };
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.Combo("處理方式", ref actionIndex, actions, actions.Length))
+            {
+                GatherBuddy.Config.AutoGatherConfig.PositionStuckAction = 
+                    (AutoGatherConfig.PositionUnstuckAction)actionIndex;
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip(
+                "傳送到最近水晶：傳送後會繼續自動採集\n" +
+                "直接回旅館：傳送後會停止自動採集");
+        }
     }
 
 
@@ -827,6 +873,8 @@ public partial class Interface
                 ConfigFunctions.DrawAlwaysMapsBox();
                 ConfigFunctions.DrawPlayerTargetEvasionBox();
                 ConfigFunctions.DrawPlayerTargetEvasionSlider();
+                ConfigFunctions.DrawPositionStuckCheckBox();
+                ConfigFunctions.DrawPositionStuckSettings();
                 ImGui.TreePop();
             }
 

@@ -121,6 +121,7 @@ namespace GatherBuddy.AutoGather
         private readonly ActiveItemList        _activeItemList;
         private readonly AutoGatherListsManager _listsManager;
         private readonly PlayerTargetTracker   _playerTargetTracker = new();
+        private readonly PositionStuckTracker  _positionStuckTracker = new();
 
         public Reflection.ArtisanExporter ArtisanExporter;
         public TaskManager                TaskManager { get; }
@@ -146,6 +147,7 @@ namespace GatherBuddy.AutoGather
 
                     _activeItemList.Reset();
                     _playerTargetTracker.Reset();
+                    _positionStuckTracker.Reset();
                     Waiting                    = false;
                     ActionSequence             = null;
                     CurrentCollectableRotation = null;
@@ -323,6 +325,55 @@ namespace GatherBuddy.AutoGather
                         _playerTargetTracker.Reset();
                     }
                     return;
+                }
+            }
+
+            // 位置範圍防卡死檢查
+            if (GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck)
+            {
+                var player = Svc.ClientState.LocalPlayer;
+                if (player != null)
+                {
+                    if (!_positionStuckTracker.IsTracking)
+                    {
+                        _positionStuckTracker.StartTracking(player.Position);
+                    }
+
+                    if (_positionStuckTracker.ShouldTrigger(
+                        player.Position,
+                        GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius,
+                        GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds))
+                    {
+                        var action = GatherBuddy.Config.AutoGatherConfig.PositionStuckAction;
+                        var message = action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte
+                            ? "偵測到長時間在同一區域，正在傳送到最近水晶..."
+                            : "偵測到長時間在同一區域，正在返回旅館...";
+
+                        GatherBuddy.Log.Warning(message);
+                        Communicator.Print($"[GatherBuddy] {message}");
+                        Svc.Toasts.ShowNormal(message);
+
+                        _positionStuckTracker.Reset();
+
+                        if (action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte)
+                        {
+                            TeleportToNearestAetheryte();
+                        }
+                        else
+                        {
+                            StopNavigation();
+                            WentHome = false;
+                            if (GoHome())
+                            {
+                                TaskManager.Enqueue(() => { Enabled = false; });
+                            }
+                            else
+                            {
+                                Enabled = false;
+                            }
+                        }
+                        return;
+                    }
                 }
             }
 
@@ -1053,6 +1104,56 @@ namespace GatherBuddy.AutoGather
         internal void DebugMarkVisited(GatherTarget target)
         {
             _activeItemList.DebugMarkVisited(target);
+        }
+
+        private void TeleportToNearestAetheryte()
+        {
+            var player = Svc.ClientState.LocalPlayer;
+            if (player == null)
+            {
+                GatherBuddy.Log.Warning("無法取得玩家位置");
+                return;
+            }
+
+            var currentTerritory = Svc.ClientState.TerritoryType;
+            var currentPos = player.Position;
+
+            Aetheryte? closest = null;
+            float minDistance = float.MaxValue;
+
+            foreach (var aetheryte in GatherBuddy.GameData.Aetherytes.Values)
+            {
+                if (aetheryte.Territory.Id != currentTerritory)
+                    continue;
+
+                var distance = Vector3.Distance(currentPos, aetheryte.WorldPosition);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closest = aetheryte;
+                }
+            }
+
+            if (closest == null)
+            {
+                GatherBuddy.Log.Warning("未找到可用的以太水晶");
+                Communicator.PrintError("[GatherBuddy] 未找到可用的以太水晶，無法傳送");
+                return;
+            }
+
+            GatherBuddy.Log.Information($"正在傳送到 {closest.Name}...");
+            AutoStatus = $"正在傳送到 {closest.Name}...";
+
+            StopNavigation();
+            TaskManager.Enqueue(() => TeleportToAetheryte(closest));
+            TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.BetweenAreas], 
+                int.MaxValue, "等待傳送完成");
+            TaskManager.Enqueue(() => 
+            {
+                var p = Svc.ClientState.LocalPlayer;
+                if (p != null)
+                    _positionStuckTracker.StartTracking(p.Position);
+            });
         }
 
         public void Dispose()
