@@ -48,19 +48,40 @@ public class AutoGatherOverlay : IDisposable
             DrawWorldCircle(drawList, player.Position, _radiusToShow, 0x8000FF00);
         }
 
-        if (GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck 
-            && _autoGather.Enabled 
-            && _autoGather.PositionStuckTracker.IsTracking)
+        if (GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationEnabled 
+            && _autoGather.Enabled)
         {
-            var timeInRange = _autoGather.PositionStuckTracker.GetTimeInRange();
-            // Only show countdown while we're inside the tracked range.
-            if (timeInRange > 0)
+            var manager = _autoGather.AntiStuckManager;
+            var state = manager.State;
+            
+            if (state == Helpers.AntiStuckState.EscalationArmed || state == Helpers.AntiStuckState.DrasticActionReady)
             {
-                var threshold = GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds;
+                var timeInRange = manager.TimeInArea;
+                var threshold = GatherBuddy.Config.AutoGatherConfig.AntiStuck.AreaTimeSeconds;
                 var remaining = Math.Max(0, threshold - timeInRange);
+                var stateText = state switch
+                {
+                    Helpers.AntiStuckState.EscalationArmed => " [升級待命]",
+                    Helpers.AntiStuckState.DrasticActionReady => " [準備執行]",
+                    _ => ""
+                };
 
-                DrawCountdownText(drawList, $"防卡死倒數: {remaining:F0} 秒",
+                DrawCountdownText(drawList, $"防卡死倒數: {remaining:F0} 秒{stateText}",
                     new Vector4(1f, 1f, 0f, 1f),
+                    new Vector2(10, 60));
+            }
+            else if (state == Helpers.AntiStuckState.Cooldown)
+            {
+                var cooldownRemaining = manager.CooldownRemaining;
+                DrawCountdownText(drawList, $"防卡死冷卻中: {cooldownRemaining:F0} 秒",
+                    new Vector4(0.5f, 0.5f, 1f, 1f),
+                    new Vector2(10, 60));
+            }
+            else if (manager.ConsecutiveFails > 0)
+            {
+                var failThreshold = GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationAfterFails;
+                DrawCountdownText(drawList, $"近端復原失敗: {manager.ConsecutiveFails}/{failThreshold}",
+                    new Vector4(1f, 0.7f, 0f, 1f),
                     new Vector2(10, 60));
             }
         }

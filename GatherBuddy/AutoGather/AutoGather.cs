@@ -11,6 +11,7 @@ using Dalamud.Game.ClientState.Conditions;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using GatherBuddy.AutoGather.Movement;
+using GatherBuddy.AutoGather.Helpers;
 using GatherBuddy.CustomInfo;
 using GatherBuddy.Enums;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
@@ -49,6 +50,8 @@ namespace GatherBuddy.AutoGather
             _plugin                      =  plugin;
             _soundHelper                 =  new SoundHelper();
             _advancedUnstuck             =  new();
+            _antiStuckManager            =  new AntiStuckManager(_advancedUnstuck);
+            GatherBuddy.Config.AutoGatherConfig.MigrateAntiStuckConfig();
             _activeItemList              =  new ActiveItemList(plugin.AutoGatherListsManager);
             _listsManager                =  plugin.AutoGatherListsManager;
             ArtisanExporter              =  new Reflection.ArtisanExporter(plugin.AutoGatherListsManager);
@@ -124,11 +127,11 @@ namespace GatherBuddy.AutoGather
         private readonly ActiveItemList        _activeItemList;
         private readonly AutoGatherListsManager _listsManager;
         private readonly PlayerTargetTracker   _playerTargetTracker = new();
-        private readonly PositionStuckTracker  _positionStuckTracker = new();
+        private readonly AntiStuckManager      _antiStuckManager;
 
         private AutoGatherOverlay? _overlay;
 
-        public PositionStuckTracker PositionStuckTracker => _positionStuckTracker;
+        public AntiStuckManager AntiStuckManager => _antiStuckManager;
         public PlayerTargetTracker PlayerTargetTracker => _playerTargetTracker;
         public AutoGatherOverlay? Overlay => _overlay;
 
@@ -158,7 +161,7 @@ namespace GatherBuddy.AutoGather
 
                     _activeItemList.Reset();
                     _playerTargetTracker.Reset();
-                    _positionStuckTracker.Reset();
+                    _antiStuckManager.Reset("auto-gather disabled");
                     _wasGathering               = false;
                     Waiting                    = false;
                     ActionSequence             = null;
@@ -176,6 +179,7 @@ namespace GatherBuddy.AutoGather
                 else
                 {
                     WentHome = true; //Prevents going home right after enabling auto-gather
+                    _antiStuckManager.OnSessionStart();
                     if (AutoHook.Enabled)
                         AutoHook.SetPluginState(false); //Make sure AutoHook doesn't interfere with us
                 }
@@ -232,14 +236,8 @@ namespace GatherBuddy.AutoGather
                 return;
             }
 
-            // Start/refresh the position-stuck tracking anchor when a gather session begins.
-            // Triggering (teleport/go home) is still gated later to avoid trying to teleport while gathering.
-            if (GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck)
-            {
-                var localPlayer = Svc.ClientState.LocalPlayer;
-                if (localPlayer != null && IsGathering && !_wasGathering)
-                    _positionStuckTracker.StartTracking(localPlayer.Position);
-            }
+            // AntiStuckManager: 通知採集狀態變更
+            _antiStuckManager.OnGatheringStateChanged(IsGathering);
 
             _wasGathering = IsGathering;
 
@@ -351,53 +349,39 @@ namespace GatherBuddy.AutoGather
                 }
             }
 
-            // 位置範圍防卡死檢查
-            if (GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck)
+            // AntiStuckManager: 更新目的地並檢查是否需要執行強制措施
+            _antiStuckManager.SetDestination(CurrentDestination);
+            if (CanAct && !TaskManager.IsBusy && !IsGathering && _antiStuckManager.ShouldExecuteDrasticAction())
             {
-                var player = Svc.ClientState.LocalPlayer;
-                if (player != null)
+                var action = _antiStuckManager.GetDrasticAction();
+                var message = action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte
+                    ? "偵測到長時間卡住，正在傳送到最近水晶..."
+                    : "偵測到長時間卡住，正在返回旅館...";
+
+                GatherBuddy.Log.Warning(message);
+                Communicator.Print($"[GatherBuddy] {message}");
+                Svc.Toasts.ShowNormal(message);
+
+                _antiStuckManager.MarkDrasticActionExecuted();
+
+                if (action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte)
                 {
-                    if (_positionStuckTracker.IsTracking)
+                    TeleportToNearestAetheryte();
+                }
+                else
+                {
+                    StopNavigation();
+                    WentHome = false;
+                    if (GoHome())
                     {
-                        var radius = GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius;
-                        _positionStuckTracker.UpdateRangeState(player.Position, radius);
-
-                        // 只在可行動、TaskManager 空閒、非採集中、且有導航目標時觸發
-                        if (CanAct && !TaskManager.IsBusy && !IsGathering && CurrentDestination != default
-                            && _positionStuckTracker.ShouldTrigger(GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds))
-                        {
-                            var action = GatherBuddy.Config.AutoGatherConfig.PositionStuckAction;
-                            var message = action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte
-                                ? "偵測到長時間在同一區域，正在傳送到最近水晶..."
-                                : "偵測到長時間在同一區域，正在返回旅館...";
-
-                            GatherBuddy.Log.Warning(message);
-                            Communicator.Print($"[GatherBuddy] {message}");
-                            Svc.Toasts.ShowNormal(message);
-
-                            _positionStuckTracker.Reset();
-
-                            if (action == AutoGatherConfig.PositionUnstuckAction.TeleportAetheryte)
-                            {
-                                TeleportToNearestAetheryte();
-                            }
-                            else
-                            {
-                                StopNavigation();
-                                WentHome = false;
-                                if (GoHome())
-                                {
-                                    TaskManager.Enqueue(() => { Enabled = false; });
-                                }
-                                else
-                                {
-                                    Enabled = false;
-                                }
-                            }
-                            return;
-                        }
+                        TaskManager.Enqueue(() => { Enabled = false; });
+                    }
+                    else
+                    {
+                        Enabled = false;
                     }
                 }
+                return;
             }
 
             try
@@ -525,7 +509,7 @@ namespace GatherBuddy.AutoGather
             var isPathGenerating = IsPathGenerating;
             var isPathing        = IsPathing;
 
-            switch (_advancedUnstuck.Check(CurrentDestination, isPathGenerating, isPathing))
+            switch (_antiStuckManager.Tick(isPathGenerating, isPathing))
             {
                 case AdvancedUnstuckCheckResult.Pass: break;
                 case AdvancedUnstuckCheckResult.Wait: return;
@@ -1195,12 +1179,6 @@ namespace GatherBuddy.AutoGather
             TaskManager.Enqueue(() => !Dalamud.Conditions[ConditionFlag.BetweenAreas] 
                 && !Dalamud.Conditions[ConditionFlag.BetweenAreas51], 120000, "等待傳送完成");
             TaskManager.Enqueue(() => CanAct, 5000, "等待可行動");
-            TaskManager.Enqueue(() => 
-            {
-                var p = Svc.ClientState.LocalPlayer;
-                if (p != null)
-                    _positionStuckTracker.StartTracking(p.Position);
-            });
         }
 
         public void Dispose()
@@ -1208,6 +1186,7 @@ namespace GatherBuddy.AutoGather
             _overlay?.Dispose();
             _overlay = null;
 
+            _antiStuckManager.Dispose();
             _advancedUnstuck.Dispose();
             NodeTracker.Dispose();
             _activeItemList.Dispose();

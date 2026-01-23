@@ -794,56 +794,104 @@ public partial class Interface
             ImGuiUtil.HoverTooltip("其他玩家選中你多長時間 (1-120 秒) 後觸發躲避。");
         }
 
-        public static void DrawPositionStuckCheckBox()
+        public static void DrawAntiStuckSettings()
         {
-            DrawCheckbox("啟用位置範圍防卡死",
-                "當角色在指定範圍內持續指定時間，自動觸發防卡死處理。\n" +
-                "每次開始採集時會重置並以當前位置為中心劃出範圍。\n" +
-                "離開範圍會取消計時，重新進入才會重新開始。\n" +
-                "僅在有導航目標時才會觸發，避免誤傷正常待機。",
-                GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck,
-                b => GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck = b);
-        }
+            var config = GatherBuddy.Config.AutoGatherConfig.AntiStuck;
 
-        public static void DrawPositionStuckSettings()
-        {
-            if (!GatherBuddy.Config.AutoGatherConfig.EnablePositionStuckCheck)
+            DrawCheckbox("啟用防卡死功能",
+                "統一的防卡死系統，整合近端復原與升級策略。\n" +
+                "近端復原：偵測導航卡住時會嘗試隨機移動脫困。\n" +
+                "升級策略：多次失敗後可選擇傳送或回家。",
+                config.Enabled,
+                b => { config.Enabled = b; GatherBuddy.Config.Save(); });
+
+            if (!config.Enabled)
                 return;
 
-            var radius = GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius;
-            ImGui.SetNextItemWidth(SetInputWidth);
-            if (ImGui.SliderFloat("偵測範圍 (yalms)", ref radius, 10f, 200f, "%.0f"))
+            ImGui.Indent();
+
+            DrawCheckbox("近端復原（隨機移動）",
+                "當導航卡住時，嘗試隨機方向移動來脫困。",
+                config.LocalRecoveryEnabled,
+                b => { config.LocalRecoveryEnabled = b; GatherBuddy.Config.Save(); });
+
+            DrawCheckbox("升級策略（傳送/回家）",
+                "當近端復原多次失敗且長時間停滯時，執行更強的措施。",
+                config.EscalationEnabled,
+                b => { config.EscalationEnabled = b; GatherBuddy.Config.Save(); });
+
+            if (config.EscalationEnabled)
             {
-                GatherBuddy.Config.AutoGatherConfig.PositionStuckRadius = radius;
-                GatherBuddy.Config.Save();
+                ImGui.Indent();
+
+                var fails = config.EscalationAfterFails;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.SliderInt("失敗次數門檻", ref fails, 1, 10))
+                {
+                    config.EscalationAfterFails = fails;
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("近端復原連續失敗幾次後才啟用區域停滯計時。");
+
+                var radius = config.AreaRadius;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.SliderFloat("區域判定半徑 (yalms)", ref radius, 10f, 200f, "%.0f"))
+                {
+                    config.AreaRadius = radius;
+                    GatherBuddy.Config.Save();
+                }
+                GatherBuddy.AutoGather.Overlay?.SetShowRadiusCircle(ImGui.IsItemActive(), radius);
+                ImGuiUtil.HoverTooltip("當角色持續在此範圍內活動超過指定時間，將觸發強制措施。");
+
+                var timeSeconds = config.AreaTimeSeconds;
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.SliderInt("區域停滯時間 (秒)", ref timeSeconds, 30, 600))
+                {
+                    config.AreaTimeSeconds = timeSeconds;
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip("在範圍內持續多久後觸發強制措施 (30-600 秒)。");
+
+                var actionIndex = (int)config.DrasticAction;
+                var actions = new[] { "不執行", "傳送到最近水晶並繼續", "直接回旅館並停止" };
+                ImGui.SetNextItemWidth(SetInputWidth);
+                if (ImGui.Combo("強制措施", ref actionIndex, actions, actions.Length))
+                {
+                    config.DrasticAction = (AutoGatherConfig.PositionUnstuckAction)actionIndex;
+                    GatherBuddy.Config.Save();
+                }
+                ImGuiUtil.HoverTooltip(
+                    "不執行：僅記錄日誌，不採取行動\n" +
+                    "傳送到最近水晶：傳送後會繼續自動採集\n" +
+                    "直接回旅館：傳送後會停止自動採集");
+
+                if (ImGui.TreeNodeEx("進階設定##AntiStuckAdvanced"))
+                {
+                    var cooldown = config.DrasticCooldownSeconds;
+                    ImGui.SetNextItemWidth(SetInputWidth);
+                    if (ImGui.SliderInt("冷卻時間 (秒)", ref cooldown, 60, 1800))
+                    {
+                        config.DrasticCooldownSeconds = cooldown;
+                        GatherBuddy.Config.Save();
+                    }
+                    ImGuiUtil.HoverTooltip("執行強制措施後的冷卻時間，避免連續觸發。");
+
+                    var maxPerSession = config.MaxDrasticPerSession;
+                    ImGui.SetNextItemWidth(SetInputWidth);
+                    if (ImGui.SliderInt("每次採集最多次數", ref maxPerSession, 1, 10))
+                    {
+                        config.MaxDrasticPerSession = maxPerSession;
+                        GatherBuddy.Config.Save();
+                    }
+                    ImGuiUtil.HoverTooltip("每次自動採集 session 最多執行幾次強制措施。");
+
+                    ImGui.TreePop();
+                }
+
+                ImGui.Unindent();
             }
 
-            // 當拖動 slider 時，在角色周圍顯示範圍圓圈。
-            GatherBuddy.AutoGather.Overlay?.SetShowRadiusCircle(ImGui.IsItemActive(), radius);
- 
-            ImGuiUtil.HoverTooltip("當角色持續在此範圍內活動超過指定時間，將觸發防卡死處理。");
-
-            var timeSeconds = GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds;
-            ImGui.SetNextItemWidth(SetInputWidth);
-            if (ImGui.SliderInt("觸發時間 (秒)", ref timeSeconds, 30, 600))
-            {
-                GatherBuddy.Config.AutoGatherConfig.PositionStuckTimeSeconds = timeSeconds;
-                GatherBuddy.Config.Save();
-            }
-            ImGuiUtil.HoverTooltip("在範圍內持續多久後觸發防卡死處理 (30-600 秒)。");
-
-            var actionIndex = (int)GatherBuddy.Config.AutoGatherConfig.PositionStuckAction;
-            var actions = new[] { "傳送到最近水晶並繼續", "直接回旅館並停止" };
-            ImGui.SetNextItemWidth(SetInputWidth);
-            if (ImGui.Combo("處理方式", ref actionIndex, actions, actions.Length))
-            {
-                GatherBuddy.Config.AutoGatherConfig.PositionStuckAction = 
-                    (AutoGatherConfig.PositionUnstuckAction)actionIndex;
-                GatherBuddy.Config.Save();
-            }
-            ImGuiUtil.HoverTooltip(
-                "傳送到最近水晶：傳送後會繼續自動採集\n" +
-                "直接回旅館：傳送後會停止自動採集");
+            ImGui.Unindent();
         }
     }
 
@@ -879,8 +927,7 @@ public partial class Interface
                 ConfigFunctions.DrawAlwaysMapsBox();
                 ConfigFunctions.DrawPlayerTargetEvasionBox();
                 ConfigFunctions.DrawPlayerTargetEvasionSlider();
-                ConfigFunctions.DrawPositionStuckCheckBox();
-                ConfigFunctions.DrawPositionStuckSettings();
+                ConfigFunctions.DrawAntiStuckSettings();
                 ImGui.TreePop();
             }
 

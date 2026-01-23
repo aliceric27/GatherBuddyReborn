@@ -84,16 +84,73 @@ namespace GatherBuddy.AutoGather
         public bool EnablePlayerTargetEvasion { get; set; } = false;
         public int PlayerTargetEvasionSeconds { get; set; } = 10;
 
-        // 位置範圍防卡死功能
-        public bool EnablePositionStuckCheck { get; set; } = false;
-        public float PositionStuckRadius { get; set; } = 50f;
-        public int PositionStuckTimeSeconds { get; set; } = 120;
-        public PositionUnstuckAction PositionStuckAction { get; set; } = PositionUnstuckAction.TeleportAetheryte;
+        // 舊版位置範圍防卡死功能（已整合到 AntiStuck，保留以供遷移）
+        [Obsolete("已整合到 AntiStuck 設定")] public bool EnablePositionStuckCheck { get; set; } = false;
+        [Obsolete("已整合到 AntiStuck 設定")] public float PositionStuckRadius { get; set; } = 50f;
+        [Obsolete("已整合到 AntiStuck 設定")] public int PositionStuckTimeSeconds { get; set; } = 120;
+        [Obsolete("已整合到 AntiStuck 設定")] public PositionUnstuckAction PositionStuckAction { get; set; } = PositionUnstuckAction.TeleportAetheryte;
 
         public enum PositionUnstuckAction
         {
+            Off,                // 不執行任何動作
             TeleportAetheryte,  // 傳送到最近水晶並繼續採集
             GoHome              // 直接回旅館並停止
+        }
+
+        // ========== Anti-Stuck 統一防卡死設定 ==========
+        public AntiStuckConfig AntiStuck { get; set; } = new();
+        public int AntiStuckConfigVersion { get; set; } = 0;
+
+        public class AntiStuckConfig
+        {
+            /// <summary>總開關：是否啟用防卡死功能</summary>
+            public bool Enabled { get; set; } = true;
+
+            /// <summary>近端復原：啟用移動/導航卡住自動復原（隨機移動）</summary>
+            public bool LocalRecoveryEnabled { get; set; } = true;
+
+            /// <summary>升級策略：允許在多次復原失敗後採取更強措施（傳送/回家）</summary>
+            public bool EscalationEnabled { get; set; } = false;
+
+            /// <summary>連續失敗幾次後才啟用區域停滯計時</summary>
+            public int EscalationAfterFails { get; set; } = 3;
+
+            /// <summary>區域判定半徑（yalms）</summary>
+            public float AreaRadius { get; set; } = 50f;
+
+            /// <summary>區域停滯時間（秒），超過此時間觸發 DrasticAction</summary>
+            public int AreaTimeSeconds { get; set; } = 120;
+
+            /// <summary>嚴重卡住時的處理動作</summary>
+            public PositionUnstuckAction DrasticAction { get; set; } = PositionUnstuckAction.TeleportAetheryte;
+
+            /// <summary>Drastic Action 冷卻時間（秒）</summary>
+            public int DrasticCooldownSeconds { get; set; } = 600;
+
+            /// <summary>每次採集 session 最多執行幾次 Drastic Action</summary>
+            public int MaxDrasticPerSession { get; set; } = 2;
+        }
+
+        private const int CurrentAntiStuckVersion = 1;
+
+        public void MigrateAntiStuckConfig()
+        {
+            if (AntiStuckConfigVersion >= CurrentAntiStuckVersion)
+                return;
+
+#pragma warning disable CS0612
+            if (EnablePositionStuckCheck)
+            {
+                AntiStuck.EscalationEnabled = true;
+                AntiStuck.AreaRadius = PositionStuckRadius;
+                AntiStuck.AreaTimeSeconds = PositionStuckTimeSeconds;
+                AntiStuck.DrasticAction = PositionStuckAction;
+            }
+#pragma warning restore CS0612
+
+            AntiStuckConfigVersion = CurrentAntiStuckVersion;
+            GatherBuddy.Config.Save();
+            GatherBuddy.Log.Information("AntiStuck 設定已從舊版遷移完成");
         }
 
         public enum SortingType
