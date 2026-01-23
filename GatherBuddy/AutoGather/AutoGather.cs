@@ -175,13 +175,21 @@ namespace GatherBuddy.AutoGather
                     _diademQueuingInProgress = false;
                     FarNodesSeenSoFar.Clear();
                     VisitedNodes.Clear();
+                    
+                    if (_scheduledState != ScheduledCommandState.ExecutingCommand 
+                        && _scheduledState != ScheduledCommandState.WaitingResume)
+                    {
+                        ResetScheduledCommand();
+                    }
                 }
                 else
                 {
-                    WentHome = true; //Prevents going home right after enabling auto-gather
+                    WentHome = true;
                     _antiStuckManager.OnSessionStart();
                     if (AutoHook.Enabled)
-                        AutoHook.SetPluginState(false); //Make sure AutoHook doesn't interfere with us
+                        AutoHook.SetPluginState(false);
+                    
+                    InitializeScheduledCommand();
                 }
 
                 _enabled = value;
@@ -230,6 +238,12 @@ namespace GatherBuddy.AutoGather
         {
             if (!IsGathering)
                 LuckUsed = new(0); //Reset the flag even if auto-gather was disabled mid-gathering
+
+            // 排程指令處理（即使 Enabled=false 也要處理 WaitingResume 狀態）
+            if (HandleScheduledCommand())
+            {
+                return;
+            }
 
             if (!Enabled)
             {

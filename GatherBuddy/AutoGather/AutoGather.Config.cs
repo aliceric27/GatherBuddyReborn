@@ -81,6 +81,16 @@ namespace GatherBuddy.AutoGather
         public int MaxFishingSpotMinutes { get; set; } = 20;
         public bool UseNavigation { get; set; } = true;
 
+        // ========== 排程指令功能設定 ==========
+        /// <summary>是否啟用排程指令功能</summary>
+        public bool EnableScheduledCommand { get; set; } = false;
+        /// <summary>要執行的指令（必須以 / 開頭）</summary>
+        public string ScheduledCommand { get; set; } = "/li auto";
+        /// <summary>每隔多少分鐘執行一次指令</summary>
+        public int ScheduledCommandIntervalMinutes { get; set; } = 60;
+        /// <summary>執行指令後等待多少分鐘再恢復採集</summary>
+        public int ScheduledCommandResumeDelayMinutes { get; set; } = 5;
+
         public bool EnablePlayerTargetEvasion { get; set; } = false;
         public int PlayerTargetEvasionSeconds { get; set; } = 10;
 

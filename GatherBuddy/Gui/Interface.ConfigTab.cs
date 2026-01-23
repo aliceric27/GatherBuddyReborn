@@ -893,6 +893,60 @@ public partial class Interface
 
             ImGui.Unindent();
         }
+
+        public static void DrawScheduledCommandSettings()
+        {
+            var config = GatherBuddy.Config.AutoGatherConfig;
+
+            DrawCheckbox("啟用排程指令",
+                "定期執行指令（例如回旅館處理雇員），執行後等待一段時間再繼續採集。\n" +
+                "流程：自動採集 → X分鐘後等待當前採集完成 → 關閉自動採集 → 執行指令 → 等待Y分鐘 → 重新開啟自動採集 → 循環",
+                config.EnableScheduledCommand,
+                b => { config.EnableScheduledCommand = b; GatherBuddy.Config.Save(); });
+
+            if (!config.EnableScheduledCommand)
+                return;
+
+            ImGui.Indent();
+
+            var interval = config.ScheduledCommandIntervalMinutes;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.SliderInt("執行間隔 (分鐘)##ScheduledInterval", ref interval, 1, 240))
+            {
+                config.ScheduledCommandIntervalMinutes = Math.Clamp(interval, 1, 240);
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("每隔多少分鐘執行一次指令 (1-240 分鐘)");
+
+            var command = config.ScheduledCommand;
+            ImGui.SetNextItemWidth(SetInputWidth * 1.5f);
+            if (ImGui.InputText("執行指令##ScheduledCommand", ref command, 200))
+            {
+                config.ScheduledCommand = command;
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip(
+                "要執行的指令，例如 /li auto\n" +
+                "必須以 / 開頭\n" +
+                "執行前會先關閉自動採集");
+
+            var delay = config.ScheduledCommandResumeDelayMinutes;
+            ImGui.SetNextItemWidth(SetInputWidth);
+            if (ImGui.SliderInt("恢復延遲 (分鐘)##ScheduledDelay", ref delay, 1, 60))
+            {
+                config.ScheduledCommandResumeDelayMinutes = Math.Clamp(delay, 1, 60);
+                GatherBuddy.Config.Save();
+            }
+            ImGuiUtil.HoverTooltip("執行指令後等待多久再恢復自動採集 (1-60 分鐘)");
+
+            var status = GatherBuddy.AutoGather.GetScheduledCommandStatus();
+            if (!string.IsNullOrEmpty(status))
+            {
+                ImGui.TextColored(new System.Numerics.Vector4(0.5f, 1f, 0.5f, 1f), $"[排程狀態] {status}");
+            }
+
+            ImGui.Unindent();
+        }
     }
 
 
@@ -928,6 +982,7 @@ public partial class Interface
                 ConfigFunctions.DrawPlayerTargetEvasionBox();
                 ConfigFunctions.DrawPlayerTargetEvasionSlider();
                 ConfigFunctions.DrawAntiStuckSettings();
+                ConfigFunctions.DrawScheduledCommandSettings();
                 ImGui.TreePop();
             }
 
