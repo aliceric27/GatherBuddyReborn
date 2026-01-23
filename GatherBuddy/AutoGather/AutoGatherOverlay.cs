@@ -107,6 +107,25 @@ public class AutoGatherOverlay : IDisposable
                     new Vector2(10, 90));
             }
         }
+
+        if (GatherBuddy.Config.AutoGatherConfig.EnableScheduledCommand)
+        {
+            var scheduledStatus = _autoGather.GetScheduledCommandStatus();
+            if (!string.IsNullOrEmpty(scheduledStatus))
+            {
+                var yOffset = 120f;
+                if (GatherBuddy.Config.AutoGatherConfig.EnablePlayerTargetEvasion && _cachedIsBeingTargeted)
+                    yOffset = 120f;
+                else if (GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationEnabled && _autoGather.Enabled)
+                    yOffset = 90f;
+                else
+                    yOffset = 60f;
+
+                DrawCountdownText(drawList, $"[排程] {scheduledStatus}",
+                    new Vector4(0.4f, 0.8f, 1.0f, 1f),
+                    new Vector2(10, yOffset));
+            }
+        }
     }
 
     private void DrawWorldCircle(ImDrawListPtr drawList, Vector3 center, float radius, uint color)

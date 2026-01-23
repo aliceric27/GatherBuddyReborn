@@ -188,8 +188,9 @@ namespace GatherBuddy.AutoGather
                     _antiStuckManager.OnSessionStart();
                     if (AutoHook.Enabled)
                         AutoHook.SetPluginState(false);
-                    
-                    InitializeScheduledCommand();
+
+                    if (_scheduledState == ScheduledCommandState.Off)
+                        InitializeScheduledCommand();
                 }
 
                 _enabled = value;

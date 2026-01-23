@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.Enums;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using GatherBuddy.Plugin;
@@ -35,6 +35,13 @@ namespace GatherBuddy.AutoGather
             }
 
             ImGui.Text($"狀態: {GatherBuddy.AutoGather.AutoStatus}");
+            
+            var scheduledStatus = GatherBuddy.AutoGather.GetScheduledCommandStatus();
+            if (!string.IsNullOrEmpty(scheduledStatus))
+            {
+                ImGui.TextColored(new Vector4(0.4f, 0.8f, 1.0f, 1.0f), $"[排程] {scheduledStatus}");
+            }
+            
             var lastNavString = GatherBuddy.AutoGather.LastNavigationResult.HasValue
                 ? GatherBuddy.AutoGather.LastNavigationResult.Value
                     ? "成功"

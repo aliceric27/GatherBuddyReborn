@@ -19,10 +19,13 @@ namespace GatherBuddy.AutoGather
         private DateTime _scheduledExecuteAt;
         private DateTime _scheduledResumeAt;
         private DateTime _scheduledWaitStartedAt;
+        private DateTime _scheduledCanActWaitStartedAt;
         private bool _isResumingFromSchedule;
+        private bool _scheduledCommandDisabledAutoGather;
 
         private const int ScheduledCommandWaitTimeoutSeconds = 120;
         private const int ScheduledCommandTaskWaitTimeoutSeconds = 30;
+        private const int ScheduledCommandCanActWaitTimeoutSeconds = 180;
 
         private void InitializeScheduledCommand()
         {
@@ -31,6 +34,9 @@ namespace GatherBuddy.AutoGather
                 _isResumingFromSchedule = false;
                 return;
             }
+
+            if (_scheduledState != ScheduledCommandState.Off)
+                return;
 
             var config = GatherBuddy.Config.AutoGatherConfig;
             if (config.EnableScheduledCommand
@@ -45,17 +51,44 @@ namespace GatherBuddy.AutoGather
 
         private void ResetScheduledCommand()
         {
+            var wasDisabled = _scheduledCommandDisabledAutoGather;
             _scheduledState = ScheduledCommandState.Off;
             _isResumingFromSchedule = false;
+            _scheduledCommandDisabledAutoGather = false;
+
+            if (wasDisabled && !Enabled)
+            {
+                GatherBuddy.Log.Information("排程已停用，恢復自動採集");
+                Communicator.Print("[GatherBuddy] 排程已停用，恢復自動採集");
+                _isResumingFromSchedule = true;
+                Enabled = true;
+            }
         }
 
-        private void RearmScheduledCommand(string reason)
+        private void RearmScheduledCommandAndResume(string reason)
         {
             var config = GatherBuddy.Config.AutoGatherConfig;
+            if (config.ScheduledCommandIntervalMinutes <= 0)
+            {
+                GatherBuddy.Log.Error($"{reason}，但排程間隔設定無效，停用排程");
+                Communicator.PrintError($"[GatherBuddy] {reason}，排程間隔設定無效，已停用排程");
+                ResetScheduledCommand();
+                return;
+            }
+
             _scheduledExecuteAt = DateTime.Now.AddMinutes(config.ScheduledCommandIntervalMinutes);
             _scheduledState = ScheduledCommandState.Armed;
+            _isResumingFromSchedule = true;
+            
             GatherBuddy.Log.Warning($"{reason}，將在 {_scheduledExecuteAt:HH:mm:ss} 重試");
             Communicator.PrintError($"[GatherBuddy] {reason}，{config.ScheduledCommandIntervalMinutes} 分鐘後重試");
+
+            if (_scheduledCommandDisabledAutoGather && !Enabled)
+            {
+                _scheduledCommandDisabledAutoGather = false;
+                Enabled = true;
+                GatherBuddy.Log.Information("已恢復自動採集");
+            }
         }
 
         private bool HandleScheduledCommand()
@@ -65,7 +98,9 @@ namespace GatherBuddy.AutoGather
             if (!config.EnableScheduledCommand)
             {
                 if (_scheduledState != ScheduledCommandState.Off)
-                    _scheduledState = ScheduledCommandState.Off;
+                {
+                    ResetScheduledCommand();
+                }
                 return false;
             }
 
@@ -95,8 +130,9 @@ namespace GatherBuddy.AutoGather
                     var gatherWaitSeconds = (DateTime.Now - _scheduledWaitStartedAt).TotalSeconds;
                     if (gatherWaitSeconds > ScheduledCommandWaitTimeoutSeconds)
                     {
-                        GatherBuddy.Log.Warning($"等待採集完成超時 ({ScheduledCommandWaitTimeoutSeconds}秒)，強制繼續執行");
-                        Communicator.PrintError($"[GatherBuddy] 等待採集完成超時，強制繼續執行排程指令");
+                        GatherBuddy.Log.Warning($"等待採集完成超時 ({ScheduledCommandWaitTimeoutSeconds}秒)，延後排程並恢復採集");
+                        RearmScheduledCommandAndResume("等待採集完成超時");
+                        return false;
                     }
                     else if (IsGathering)
                     {
@@ -105,10 +141,12 @@ namespace GatherBuddy.AutoGather
                     }
 
                     GatherBuddy.Log.Information("準備執行排程指令");
-                    StopNavigation();
-                    Enabled = false;
                     _scheduledState = ScheduledCommandState.ExecutingCommand;
                     _scheduledWaitStartedAt = DateTime.Now;
+                    _scheduledCanActWaitStartedAt = default;
+                    _scheduledCommandDisabledAutoGather = true;
+                    StopNavigation();
+                    Enabled = false;
                     return true;
 
                 case ScheduledCommandState.ExecutingCommand:
@@ -126,16 +164,28 @@ namespace GatherBuddy.AutoGather
 
                     if (!CanAct)
                     {
+                        if (_scheduledCanActWaitStartedAt == default)
+                            _scheduledCanActWaitStartedAt = DateTime.Now;
+                        var canActWaitSeconds = (DateTime.Now - _scheduledCanActWaitStartedAt).TotalSeconds;
+                        if (canActWaitSeconds > ScheduledCommandCanActWaitTimeoutSeconds)
+                        {
+                            GatherBuddy.Log.Warning($"等待可行動狀態超時 ({ScheduledCommandCanActWaitTimeoutSeconds}秒)，延後排程並恢復採集");
+                            RearmScheduledCommandAndResume("等待可行動狀態超時");
+                            return false;
+                        }
+
                         AutoStatus = "排程：等待可行動狀態...";
                         return true;
                     }
+
+                    _scheduledCanActWaitStartedAt = default;
 
                     var command = config.ScheduledCommand.Trim();
                     if (!command.StartsWith("/"))
                     {
                         GatherBuddy.Log.Error($"排程指令格式錯誤，必須以 / 開頭: {command}");
                         Communicator.PrintError($"[GatherBuddy] 排程指令格式錯誤，必須以 / 開頭");
-                        RearmScheduledCommand("指令格式錯誤");
+                        RearmScheduledCommandAndResume("指令格式錯誤");
                         return false;
                     }
 
@@ -155,7 +205,7 @@ namespace GatherBuddy.AutoGather
                     {
                         GatherBuddy.Log.Error($"執行排程指令失敗: {ex.Message}");
                         Communicator.PrintError($"[GatherBuddy] 排程指令執行失敗: {ex.Message}");
-                        RearmScheduledCommand("指令執行失敗");
+                        RearmScheduledCommandAndResume("指令執行失敗");
                     }
                     return true;
 
@@ -172,6 +222,7 @@ namespace GatherBuddy.AutoGather
                     _scheduledExecuteAt = DateTime.Now.AddMinutes(config.ScheduledCommandIntervalMinutes);
                     _scheduledState = ScheduledCommandState.Armed;
                     _isResumingFromSchedule = true;
+                    _scheduledCommandDisabledAutoGather = false;
                     
                     Enabled = true;
 
