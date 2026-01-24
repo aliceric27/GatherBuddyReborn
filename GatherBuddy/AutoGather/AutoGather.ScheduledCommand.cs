@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ECommons.Automation;
 using GatherBuddy.Plugin;
 
@@ -11,6 +12,7 @@ namespace GatherBuddy.AutoGather
             Off,
             Armed,
             WaitingGatherEnd,
+            ClosingUi,
             ExecutingCommand,
             WaitingResume
         }
@@ -20,12 +22,14 @@ namespace GatherBuddy.AutoGather
         private DateTime _scheduledResumeAt;
         private DateTime _scheduledWaitStartedAt;
         private DateTime _scheduledCanActWaitStartedAt;
+        private DateTime _scheduledUiClosingStartedAt;
         private bool _isResumingFromSchedule;
         private bool _scheduledCommandDisabledAutoGather;
 
         private const int ScheduledCommandWaitTimeoutSeconds = 120;
         private const int ScheduledCommandTaskWaitTimeoutSeconds = 30;
         private const int ScheduledCommandCanActWaitTimeoutSeconds = 180;
+        private const int ScheduledCommandUiClosingDelayMs = 200;
 
         private void InitializeScheduledCommand()
         {
@@ -141,12 +145,37 @@ namespace GatherBuddy.AutoGather
                     }
 
                     GatherBuddy.Log.Information("準備執行排程指令");
-                    _scheduledState = ScheduledCommandState.ExecutingCommand;
-                    _scheduledWaitStartedAt = DateTime.Now;
-                    _scheduledCanActWaitStartedAt = default;
                     _scheduledCommandDisabledAutoGather = true;
                     StopNavigation();
                     Enabled = false;
+                    _antiStuckManager.OnAutoGatherEnabledChanged(false);
+
+                    if (config.CloseAllUiBeforeScheduledCommand)
+                    {
+                        GatherBuddy.Log.Information("執行前關閉所有視窗");
+                        CloseAllUi();
+                        _scheduledState = ScheduledCommandState.ClosingUi;
+                        _scheduledUiClosingStartedAt = DateTime.Now;
+                    }
+                    else
+                    {
+                        _scheduledState = ScheduledCommandState.ExecutingCommand;
+                        _scheduledWaitStartedAt = DateTime.Now;
+                        _scheduledCanActWaitStartedAt = default;
+                    }
+                    return true;
+
+                case ScheduledCommandState.ClosingUi:
+                    var closingDelayMs = (DateTime.Now - _scheduledUiClosingStartedAt).TotalMilliseconds;
+                    if (closingDelayMs < ScheduledCommandUiClosingDelayMs)
+                    {
+                        AutoStatus = $"排程：等待視窗關閉... ({(int)(ScheduledCommandUiClosingDelayMs - closingDelayMs)}ms)";
+                        return true;
+                    }
+
+                    _scheduledState = ScheduledCommandState.ExecutingCommand;
+                    _scheduledWaitStartedAt = DateTime.Now;
+                    _scheduledCanActWaitStartedAt = default;
                     return true;
 
                 case ScheduledCommandState.ExecutingCommand:
@@ -245,12 +274,91 @@ namespace GatherBuddy.AutoGather
                     $"下次執行: {Math.Max(0, (_scheduledExecuteAt - DateTime.Now).TotalMinutes):F1} 分鐘後",
                 ScheduledCommandState.WaitingGatherEnd =>
                     $"等待採集完成... ({Math.Max(0, ScheduledCommandWaitTimeoutSeconds - (DateTime.Now - _scheduledWaitStartedAt).TotalSeconds):F0}秒後超時)",
+                ScheduledCommandState.ClosingUi =>
+                    "關閉視窗中...",
                 ScheduledCommandState.ExecutingCommand =>
                     "執行指令中...",
                 ScheduledCommandState.WaitingResume =>
                     $"恢復倒數: {Math.Max(0, (_scheduledResumeAt - DateTime.Now).TotalSeconds):F0} 秒",
                 _ => string.Empty
             };
+        }
+
+        private static readonly HashSet<string> AlwaysKeepOpen = new()
+        {
+            "NamePlate", "ChatLog", "ChatLogPanel_0", "ChatLogPanel_1", "ChatLogPanel_2", "ChatLogPanel_3",
+            "SelectString", "SelectYesno", "SelectOk", "Talk", "Dialogue", "CutSceneSelectString",
+            "JournalDetail", "JournalResult", "ContentsFinderConfirm", "ContentsFinderReady",
+            "RetainerTaskAsk", "RetainerTaskResult", "ShopExchangeItem", "ShopExchangeItemDialog",
+            "Request", "SystemMessageDialog", "FateProgress", "ContextMenu"
+        };
+
+        private static bool ShouldSkipClosing(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return true;
+            if (name.StartsWith("_")) return true;
+            if (AlwaysKeepOpen.Contains(name)) return true;
+            return false;
+        }
+
+        private unsafe void CloseAllUi()
+        {
+            try
+            {
+                var atkStage = FFXIVClientStructs.FFXIV.Component.GUI.AtkStage.Instance();
+                if (atkStage == null)
+                {
+                    GatherBuddy.Log.Warning("AtkStage 為 null，無法關閉視窗");
+                    return;
+                }
+                
+                var raptureAtkUnitManager = atkStage->RaptureAtkUnitManager;
+                if (raptureAtkUnitManager == null)
+                {
+                    GatherBuddy.Log.Warning("RaptureAtkUnitManager 為 null，無法關閉視窗");
+                    return;
+                }
+                
+                var unitList = raptureAtkUnitManager->AtkUnitManager.AllLoadedUnitsList;
+                
+                var unitsToClose = new System.Collections.Generic.List<nint>();
+                for (int i = 0; i < unitList.Count; i++)
+                {
+                    var unit = unitList.Entries[i].Value;
+                    if (unit == null || !unit->IsVisible) continue;
+                    
+                    var name = unit->NameString;
+                    if (ShouldSkipClosing(name)) continue;
+                    
+                    unitsToClose.Add((nint)unit);
+                }
+                
+                int closedCount = 0;
+                int skippedCount = unitList.Count - unitsToClose.Count;
+                
+                foreach (var unitPtr in unitsToClose)
+                {
+                    try
+                    {
+                        var unit = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)unitPtr;
+                        if (unit != null && unit->IsVisible)
+                        {
+                            unit->FireCloseCallback();
+                            closedCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        GatherBuddy.Log.Debug($"關閉單一視窗失敗: {ex.Message}");
+                    }
+                }
+                
+                GatherBuddy.Log.Information($"視窗關閉完成：已關閉 {closedCount} 個，略過 {skippedCount} 個");
+            }
+            catch (Exception ex)
+            {
+                GatherBuddy.Log.Error($"關閉視窗失敗: {ex.Message}");
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using ClickLib.Structures;
+using ClickLib.Structures;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -453,7 +453,7 @@ namespace GatherBuddy.Plugin
             var receiveEventAddress = new nint(gatheringWindow->AtkUnitBase.AtkEventListener.vfunc[2]);
             var eventDelegate = Marshal.GetDelegateForFunctionPointer<ReceiveEventDelegate>(receiveEventAddress);
 
-            var target = AtkStage.GetSingleton();
+            var target = AtkStage.Instance();
             var eventData = EventData.ForNormalTarget(target, &gatheringWindow->AtkUnitBase);
             var inputData = InputData.Empty();
 

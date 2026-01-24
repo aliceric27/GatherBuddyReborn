@@ -25,6 +25,8 @@ public sealed class AntiStuckManager : IDisposable
     private int _drasticActionsThisSession;
     private Vector3 _currentDestination;
     private bool _isGathering;
+    private bool _autoGatherEnabled;
+    private DateTime _lastEscalationCheckAt = DateTime.MinValue;
     private AdvancedUnstuckCheckResult _lastAdvancedResult = AdvancedUnstuckCheckResult.Pass;
 
     public AntiStuckManager(AdvancedUnstuck advancedUnstuck)
@@ -52,9 +54,36 @@ public sealed class AntiStuckManager : IDisposable
             if (destination != default)
             {
                 ResetAreaTracking("destination changed");
-                if (_state == AntiStuckState.EscalationArmed && !_isGathering)
+                if (_state == AntiStuckState.EscalationArmed && _autoGatherEnabled && Config.EscalationEnabled && !_isGathering)
                     _areaTracker.StartTracking(Player.Position);
             }
+        }
+    }
+
+    public void OnAutoGatherEnabledChanged(bool enabled)
+    {
+        if (_autoGatherEnabled == enabled)
+            return;
+
+        _autoGatherEnabled = enabled;
+
+        if (!enabled)
+        {
+            // AutoGather 被停用（包含排程停用）：立即停止/重置追蹤，避免背景累積時間。
+            if (_state != AntiStuckState.Normal || _areaTracker.IsTracking)
+            {
+                _state = AntiStuckState.Normal;
+                ResetAreaTracking("auto gather disabled");
+            }
+            return;
+        }
+
+        // AutoGather 剛啟用：若有目的地且允許升級策略，直接開始區域停滯倒數。
+        if (Config.Enabled && Config.EscalationEnabled && _currentDestination != default && !_isGathering)
+        {
+            _state = AntiStuckState.EscalationArmed;
+            ResetAreaTracking("auto gather enabled");
+            _areaTracker.StartTracking(Player.Position);
         }
     }
 
@@ -69,7 +98,11 @@ public sealed class AntiStuckManager : IDisposable
             }
             else
             {
-                _areaTracker.StartTracking(Player.Position);
+                if (_autoGatherEnabled && Config.Enabled && Config.EscalationEnabled && _currentDestination != default)
+                {
+                    _state = AntiStuckState.EscalationArmed;
+                    _areaTracker.StartTracking(Player.Position);
+                }
                 GatherBuddy.Log.Verbose("AntiStuck: 採集結束，重新開始區域追蹤");
             }
         }
@@ -86,6 +119,7 @@ public sealed class AntiStuckManager : IDisposable
         _consecutiveAdvancedFails = 0;
         _state = AntiStuckState.Normal;
         _lastAdvancedResult = AdvancedUnstuckCheckResult.Pass;
+        _lastEscalationCheckAt = DateTime.MinValue;
         ResetAreaTracking(reason);
     }
 
@@ -155,19 +189,19 @@ public sealed class AntiStuckManager : IDisposable
             return;
         }
 
-        if (!Config.EscalationEnabled)
+        if (!_autoGatherEnabled || !Config.EscalationEnabled)
         {
             if (_state != AntiStuckState.Normal)
             {
                 _state = AntiStuckState.Normal;
-                ResetAreaTracking("escalation disabled");
+                ResetAreaTracking(_autoGatherEnabled ? "escalation disabled" : "auto gather disabled");
             }
             return;
         }
 
         if (_state == AntiStuckState.DrasticActionReady)
         {
-            if (_currentDestination == default || _consecutiveAdvancedFails < Config.EscalationAfterFails)
+            if (_currentDestination == default)
             {
                 _state = AntiStuckState.Normal;
                 ResetAreaTracking("ready state expired");
@@ -178,7 +212,7 @@ public sealed class AntiStuckManager : IDisposable
 
         if (_state == AntiStuckState.EscalationArmed)
         {
-            if (_consecutiveAdvancedFails < Config.EscalationAfterFails || _currentDestination == default)
+            if (_currentDestination == default)
             {
                 _state = AntiStuckState.Normal;
                 ResetAreaTracking("recovered from armed state");
@@ -186,7 +220,15 @@ public sealed class AntiStuckManager : IDisposable
                 return;
             }
 
-            if (!_isGathering && _areaTracker.ShouldTrigger(Config.AreaTimeSeconds))
+            if (_isGathering)
+                return;
+
+            // 每秒做一次「是否該升級」檢查；RangeState 仍維持每 tick 更新。
+            if ((DateTime.UtcNow - _lastEscalationCheckAt).TotalSeconds < 1)
+                return;
+            _lastEscalationCheckAt = DateTime.UtcNow;
+
+            if (_areaTracker.ShouldTrigger(Config.AreaTimeSeconds))
             {
                 _state = AntiStuckState.DrasticActionReady;
                 GatherBuddy.Log.Warning($"AntiStuck: 區域停滯 {_areaTracker.GetTimeInRange():F1} 秒，準備執行強制措施");
@@ -194,13 +236,12 @@ public sealed class AntiStuckManager : IDisposable
             return;
         }
 
-        if (_state == AntiStuckState.Normal && _consecutiveAdvancedFails >= Config.EscalationAfterFails)
+        if (_state == AntiStuckState.Normal && _currentDestination != default && !_isGathering)
         {
             _state = AntiStuckState.EscalationArmed;
             ResetAreaTracking("entering armed state");
-            if (!_isGathering && _currentDestination != default)
-                _areaTracker.StartTracking(Player.Position);
-            GatherBuddy.Log.Warning($"AntiStuck: 連續失敗 {_consecutiveAdvancedFails} 次，進入升級待命狀態");
+            _areaTracker.StartTracking(Player.Position);
+            GatherBuddy.Log.Warning("AntiStuck: 自動採集啟用，開始區域停滯倒數");
         }
     }
 

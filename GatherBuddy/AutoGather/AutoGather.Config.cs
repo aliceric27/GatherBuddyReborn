@@ -91,6 +91,9 @@ namespace GatherBuddy.AutoGather
         /// <summary>執行指令後等待多少分鐘再恢復採集</summary>
         public int ScheduledCommandResumeDelayMinutes { get; set; } = 5;
 
+        /// <summary>執行指令前是否關閉所有視窗</summary>
+        public bool CloseAllUiBeforeScheduledCommand { get; set; } = true;
+
         public bool EnablePlayerTargetEvasion { get; set; } = false;
         public int PlayerTargetEvasionSeconds { get; set; } = 10;
 
@@ -172,7 +175,7 @@ namespace GatherBuddy.AutoGather
         public class ActionConfig
         {
             public ActionConfig(bool useAction, uint minGP, uint maximumGP, ActionConditions conditions,
-                Dictionary<string, object> optionalProperties = null)
+                Dictionary<string, object>? optionalProperties = null)
             {
                 UseAction          = useAction;
                 MinimumGP          = minGP;

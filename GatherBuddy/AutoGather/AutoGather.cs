@@ -31,7 +31,6 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using GatherBuddy.AutoGather.Helpers;
 using GatherBuddy.AutoGather.Lists;
 using GatherBuddy.Classes;
 using Lumina.Excel.Sheets;
@@ -245,6 +244,9 @@ namespace GatherBuddy.AutoGather
             {
                 return;
             }
+
+            // AntiStuckManager: 追蹤 AutoGather 啟用/停用（即使 Enabled=false 也要讓 manager 有機會重置）
+            _antiStuckManager.OnAutoGatherEnabledChanged(Enabled);
 
             if (!Enabled)
             {

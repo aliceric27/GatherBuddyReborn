@@ -48,12 +48,12 @@ public class AutoGatherOverlay : IDisposable
             DrawWorldCircle(drawList, player.Position, _radiusToShow, 0x8000FF00);
         }
 
-        if (GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationEnabled 
+        if (GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationEnabled
             && _autoGather.Enabled)
         {
             var manager = _autoGather.AntiStuckManager;
             var state = manager.State;
-            
+
             if (state == Helpers.AntiStuckState.EscalationArmed || state == Helpers.AntiStuckState.DrasticActionReady)
             {
                 var timeInRange = manager.TimeInArea;
@@ -83,6 +83,24 @@ public class AutoGatherOverlay : IDisposable
                 DrawCountdownText(drawList, $"近端復原失敗: {manager.ConsecutiveFails}/{failThreshold}",
                     new Vector4(1f, 0.7f, 0f, 1f),
                     new Vector2(10, 60));
+            }
+            else
+            {
+                // 顯示區域追蹤狀態
+                if (manager.IsAreaTracking)
+                {
+                    var timeInRange = manager.TimeInArea;
+                    var threshold = GatherBuddy.Config.AutoGatherConfig.AntiStuck.AreaTimeSeconds;
+                    DrawCountdownText(drawList, $"區域停滯追蹤: {timeInRange:F0} / {threshold} 秒",
+                        new Vector4(1f, 1f, 0f, 1f),
+                        new Vector2(10, 60));
+                }
+                else
+                {
+                    DrawCountdownText(drawList, "區域停滯追蹤: 尚未啟用",
+                        new Vector4(0.6f, 0.6f, 0.6f, 1f),
+                        new Vector2(10, 60));
+                }
             }
         }
 
