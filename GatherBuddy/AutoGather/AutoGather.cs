@@ -152,6 +152,9 @@ namespace GatherBuddy.AutoGather
                 if (_enabled == value)
                     return;
 
+                var oldValue = _enabled;
+                _enabled = value;
+
                 if (!value)
                 {
                     AutoStatus = "空閒中...";
@@ -175,9 +178,19 @@ namespace GatherBuddy.AutoGather
                     FarNodesSeenSoFar.Clear();
                     VisitedNodes.Clear();
                     
-                    if (_scheduledState != ScheduledCommandState.ExecutingCommand 
-                        && _scheduledState != ScheduledCommandState.WaitingResume)
+                    // 只保护正在执行指令的关键状态，不保护倒数状态
+                    if (_scheduledState != ScheduledCommandState.WaitingGatherEnd
+                        && _scheduledState != ScheduledCommandState.ClosingUi
+                        && _scheduledState != ScheduledCommandState.ExecutingCommand
+                        // 移除 WaitingResume - 允许用户在恢复倒数时终止
+                        && _scheduledState != ScheduledCommandState.Resuming)
                     {
+                        if (_scheduledState == ScheduledCommandState.Armed
+                            || _scheduledState == ScheduledCommandState.WaitingResume)
+                        {
+                            GatherBuddy.Log.Information("自動採集已停用，終止排程倒數");
+                            Communicator.Print("[GatherBuddy] 排程倒數已終止");
+                        }
                         ResetScheduledCommand();
                     }
                 }
@@ -192,7 +205,6 @@ namespace GatherBuddy.AutoGather
                         InitializeScheduledCommand();
                 }
 
-                _enabled = value;
                 _plugin.Ipc.AutoGatherEnabledChanged(value);
             }
         }
@@ -1190,6 +1202,8 @@ namespace GatherBuddy.AutoGather
 
             StopNavigation();
 
+            TaskManager.Enqueue(() => Helpers.UiCloser.CloseBlockingUi());
+            TaskManager.DelayNext(200);
             TaskManager.Enqueue(() => SeFunctions.Teleporter.Teleport(closest.Id));
             TaskManager.Enqueue(() => Dalamud.Conditions[ConditionFlag.BetweenAreas] 
                 || Dalamud.Conditions[ConditionFlag.BetweenAreas51], 10000, "等待進入傳送");

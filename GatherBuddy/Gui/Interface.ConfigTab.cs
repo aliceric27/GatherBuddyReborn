@@ -824,15 +824,6 @@ public partial class Interface
             {
                 ImGui.Indent();
 
-                var fails = config.EscalationAfterFails;
-                ImGui.SetNextItemWidth(SetInputWidth);
-                if (ImGui.SliderInt("失敗次數門檻", ref fails, 1, 10))
-                {
-                    config.EscalationAfterFails = fails;
-                    GatherBuddy.Config.Save();
-                }
-                ImGuiUtil.HoverTooltip("近端復原連續失敗幾次後才啟用區域停滯計時。");
-
                 var radius = config.AreaRadius;
                 ImGui.SetNextItemWidth(SetInputWidth);
                 if (ImGui.SliderFloat("區域判定半徑 (yalms)", ref radius, 10f, 200f, "%.0f"))

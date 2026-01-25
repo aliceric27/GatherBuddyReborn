@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GatherBuddy.Classes;
@@ -305,6 +305,7 @@ namespace GatherBuddy.AutoGather
                 return false;
             }
 
+            EnqueueActionWithDelay(() => Helpers.UiCloser.CloseBlockingUi());
             EnqueueActionWithDelay(() => Teleporter.Teleport(aetheryte.Id));
             TaskManager.Enqueue(() => Svc.Condition[ConditionFlag.BetweenAreas]);
             TaskManager.Enqueue(() => !Svc.Condition[ConditionFlag.BetweenAreas]);

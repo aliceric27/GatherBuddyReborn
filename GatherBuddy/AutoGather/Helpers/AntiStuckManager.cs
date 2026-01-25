@@ -47,14 +47,28 @@ public sealed class AntiStuckManager : IDisposable
 
     public void SetDestination(Vector3 destination)
     {
+        if (destination == default)
+        {
+            if (_currentDestination != default)
+            {
+                _currentDestination = default;
+                if (_areaTracker.IsTracking)
+                {
+                    _areaTracker.StopTracking();
+                    GatherBuddy.Log.Verbose("AntiStuck: 目的地清除，停止區域追蹤");
+                }
+            }
+            return;
+        }
+
         var distance = Vector3.Distance(_currentDestination, destination);
         if (distance > 0.5f)
         {
             _currentDestination = destination;
-            if (destination != default)
+            
+            if (_state == AntiStuckState.EscalationArmed && _autoGatherEnabled && Config.EscalationEnabled && !_isGathering)
             {
-                ResetAreaTracking("destination changed");
-                if (_state == AntiStuckState.EscalationArmed && _autoGatherEnabled && Config.EscalationEnabled && !_isGathering)
+                if (!_areaTracker.IsTracking)
                     _areaTracker.StartTracking(Player.Position);
             }
         }

@@ -125,14 +125,15 @@ namespace GatherBuddy.AutoGather
             /// <summary>升級策略：允許在多次復原失敗後採取更強措施（傳送/回家）</summary>
             public bool EscalationEnabled { get; set; } = false;
 
-            /// <summary>連續失敗幾次後才啟用區域停滯計時</summary>
+            /// <summary>連續失敗幾次後才啟用區域停滯計時（已棄用，保留以供舊設定反序列化）</summary>
+            [Obsolete("Removed - no longer used")]
             public int EscalationAfterFails { get; set; } = 3;
 
             /// <summary>區域判定半徑（yalms）</summary>
             public float AreaRadius { get; set; } = 50f;
 
             /// <summary>區域停滯時間（秒），超過此時間觸發 DrasticAction</summary>
-            public int AreaTimeSeconds { get; set; } = 120;
+            public int AreaTimeSeconds { get; set; } = 600;
 
             /// <summary>嚴重卡住時的處理動作</summary>
             public PositionUnstuckAction DrasticAction { get; set; } = PositionUnstuckAction.TeleportAetheryte;
@@ -144,26 +145,39 @@ namespace GatherBuddy.AutoGather
             public int MaxDrasticPerSession { get; set; } = 2;
         }
 
-        private const int CurrentAntiStuckVersion = 1;
+        private const int CurrentAntiStuckVersion = 2;
 
         public void MigrateAntiStuckConfig()
         {
             if (AntiStuckConfigVersion >= CurrentAntiStuckVersion)
                 return;
 
+            bool migratedFromPositionStuck = false;
+
 #pragma warning disable CS0612
-            if (EnablePositionStuckCheck)
+            // Version 0 → 1: 從舊版 PositionStuck 設定遷移
+            if (AntiStuckConfigVersion < 1 && EnablePositionStuckCheck)
             {
                 AntiStuck.EscalationEnabled = true;
                 AntiStuck.AreaRadius = PositionStuckRadius;
                 AntiStuck.AreaTimeSeconds = PositionStuckTimeSeconds;
                 AntiStuck.DrasticAction = PositionStuckAction;
+                migratedFromPositionStuck = true;
+                GatherBuddy.Log.Information("AntiStuck 設定已從舊版 PositionStuck 遷移");
             }
 #pragma warning restore CS0612
 
+            // Version 1 → 2: 將舊預設 AreaTimeSeconds=120 更新為新預設 600
+            // 但如果剛從 PositionStuck 遷移過來，不應覆蓋（可能是使用者自訂值）
+            if (AntiStuckConfigVersion < 2 && !migratedFromPositionStuck && AntiStuck.AreaTimeSeconds == 120)
+            {
+                AntiStuck.AreaTimeSeconds = 600;
+                GatherBuddy.Log.Information("AntiStuck: 區域停滯時間已從 120 秒更新為 600 秒");
+            }
+
             AntiStuckConfigVersion = CurrentAntiStuckVersion;
             GatherBuddy.Config.Save();
-            GatherBuddy.Log.Information("AntiStuck 設定已從舊版遷移完成");
+            GatherBuddy.Log.Information("AntiStuck 設定遷移完成 (version " + CurrentAntiStuckVersion + ")");
         }
 
         public enum SortingType

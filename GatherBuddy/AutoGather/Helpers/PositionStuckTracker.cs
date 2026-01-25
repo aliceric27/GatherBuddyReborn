@@ -27,6 +27,12 @@ public class PositionStuckTracker
         _isInRange  = false;
     }
 
+    public void StopTracking()
+    {
+        _isTracking = false;
+        _isInRange  = false;
+    }
+
     public bool ShouldTrigger(Vector3 currentPosition, float radius, int timeSeconds)
     {
         UpdateRangeState(currentPosition, radius);

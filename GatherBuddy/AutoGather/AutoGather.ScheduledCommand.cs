@@ -14,7 +14,8 @@ namespace GatherBuddy.AutoGather
             WaitingGatherEnd,
             ClosingUi,
             ExecutingCommand,
-            WaitingResume
+            WaitingResume,
+            Resuming
         }
 
         private ScheduledCommandState _scheduledState = ScheduledCommandState.Off;
@@ -99,6 +100,17 @@ namespace GatherBuddy.AutoGather
         {
             var config = GatherBuddy.Config.AutoGatherConfig;
 
+            // 防御性检查：确保 Armed 倒数状态下用户停用时终止排程
+            // 注意：正常情况下 Enabled setter (AutoGather.cs:187-192) 已处理此逻辑
+            // 此检查作为额外的安全网，防止外部代码或时序问题导致状态不一致
+            if (!Enabled && !_scheduledCommandDisabledAutoGather
+                && _scheduledState == ScheduledCommandState.Armed)
+            {
+                GatherBuddy.Log.Information("自動採集已停用，終止排程倒數");
+                ResetScheduledCommand();
+                return false;
+            }
+
             if (!config.EnableScheduledCommand)
             {
                 if (_scheduledState != ScheduledCommandState.Off)
@@ -147,15 +159,13 @@ namespace GatherBuddy.AutoGather
                     GatherBuddy.Log.Information("準備執行排程指令");
                     _scheduledCommandDisabledAutoGather = true;
                     StopNavigation();
-                    Enabled = false;
-                    _antiStuckManager.OnAutoGatherEnabledChanged(false);
 
                     if (config.CloseAllUiBeforeScheduledCommand)
                     {
-                        GatherBuddy.Log.Information("執行前關閉所有視窗");
-                        CloseAllUi();
                         _scheduledState = ScheduledCommandState.ClosingUi;
                         _scheduledUiClosingStartedAt = DateTime.Now;
+                        GatherBuddy.Log.Information("執行前關閉所有視窗");
+                        CloseAllUi();
                     }
                     else
                     {
@@ -163,6 +173,9 @@ namespace GatherBuddy.AutoGather
                         _scheduledWaitStartedAt = DateTime.Now;
                         _scheduledCanActWaitStartedAt = default;
                     }
+
+                    Enabled = false;
+                    _antiStuckManager.OnAutoGatherEnabledChanged(false);
                     return true;
 
                 case ScheduledCommandState.ClosingUi:
@@ -246,18 +259,34 @@ namespace GatherBuddy.AutoGather
                         return true;
                     }
 
-                    GatherBuddy.Log.Information("恢復時間到，重新啟用自動採集");
+                    GatherBuddy.Log.Information("恢復時間到，關閉阻擋 UI 並重新啟用自動採集");
                     
-                    _scheduledExecuteAt = DateTime.Now.AddMinutes(config.ScheduledCommandIntervalMinutes);
-                    _scheduledState = ScheduledCommandState.Armed;
-                    _isResumingFromSchedule = true;
-                    _scheduledCommandDisabledAutoGather = false;
+                    _scheduledState = ScheduledCommandState.Resuming;
+                    var intervalMinutes = config.ScheduledCommandIntervalMinutes;
                     
-                    Enabled = true;
+                    TaskManager.Enqueue(() => Helpers.UiCloser.CloseBlockingUi());
+                    TaskManager.DelayNext(200);
+                    TaskManager.Enqueue(() =>
+                    {
+                        _isResumingFromSchedule = true;
 
-                    GatherBuddy.Log.Information($"下次排程將在 {_scheduledExecuteAt:HH:mm:ss} 執行");
-                    Communicator.Print($"[GatherBuddy] 自動採集已恢復，下次排程將在 {config.ScheduledCommandIntervalMinutes} 分鐘後執行");
-                    return false;
+                        // 關鍵順序：先啟用 AutoGather，再清除標記，最後改變狀態
+                        // 避免守護檢查在 Enabled 變 true 之前就觸發
+                        Enabled = true;
+                        _scheduledCommandDisabledAutoGather = false;
+
+                        _scheduledExecuteAt = DateTime.Now.AddMinutes(intervalMinutes);
+                        _scheduledState = ScheduledCommandState.Armed;
+
+                        GatherBuddy.Log.Information($"下次排程將在 {_scheduledExecuteAt:HH:mm:ss} 執行");
+                        Communicator.Print($"[GatherBuddy] 自動採集已恢復，下次排程將在 {intervalMinutes} 分鐘後執行");
+                    });
+
+                    return true;
+                
+                case ScheduledCommandState.Resuming:
+                    AutoStatus = "排程：恢復中...";
+                    return true;
             }
 
             return false;
@@ -280,6 +309,8 @@ namespace GatherBuddy.AutoGather
                     "執行指令中...",
                 ScheduledCommandState.WaitingResume =>
                     $"恢復倒數: {Math.Max(0, (_scheduledResumeAt - DateTime.Now).TotalSeconds):F0} 秒",
+                ScheduledCommandState.Resuming =>
+                    "恢復中...",
                 _ => string.Empty
             };
         }

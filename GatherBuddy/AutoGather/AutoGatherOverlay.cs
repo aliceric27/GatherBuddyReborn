@@ -77,13 +77,6 @@ public class AutoGatherOverlay : IDisposable
                     new Vector4(0.5f, 0.5f, 1f, 1f),
                     new Vector2(10, 60));
             }
-            else if (manager.ConsecutiveFails > 0)
-            {
-                var failThreshold = GatherBuddy.Config.AutoGatherConfig.AntiStuck.EscalationAfterFails;
-                DrawCountdownText(drawList, $"近端復原失敗: {manager.ConsecutiveFails}/{failThreshold}",
-                    new Vector4(1f, 0.7f, 0f, 1f),
-                    new Vector2(10, 60));
-            }
             else
             {
                 // 顯示區域追蹤狀態
