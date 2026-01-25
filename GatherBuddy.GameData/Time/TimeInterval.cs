@@ -114,13 +114,13 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
         {
             > RealTime.MillisecondsPerDay => shortString
                 ? $">{tmp.TotalDays}d"
-                : $"{((float)tmp.Time / RealTime.MillisecondsPerDay).ToString("F2", CultureInfo.InvariantCulture)} Ìì",
+                : $"{((float)tmp.Time / RealTime.MillisecondsPerDay).ToString("F2", CultureInfo.InvariantCulture)} å¤©",
             > RealTime.MillisecondsPerHour => shortString
                 ? $">{tmp.TotalHours}h"
-                : $"{tmp.TotalHours:D2}:{tmp.CurrentMinute:D2} Ğ¡Ê±",
+                : $"{tmp.TotalHours:D2}:{tmp.CurrentMinute:D2} å°æ™‚",
             _ => shortString
                 ? $"{tmp.TotalMinutes}:{tmp.CurrentSecond:D2}m"
-                : $"{tmp.TotalMinutes:D2}:{tmp.CurrentSecond:D2} ·ÖÖÓ",
+                : $"{tmp.TotalMinutes:D2}:{tmp.CurrentSecond:D2} åˆ†é˜",
         };
     }
 
@@ -129,19 +129,19 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
     {
         if (this == Always)
         {
-            timeString = "×ÜÊÇ";
+            timeString = "æ°¸ä¹…";
             return true;
         }
 
         if (this == Never)
         {
-            timeString = "´Ó²»";
+            timeString = "å¾ä¸";
             return false;
         }
 
         if (this == Invalid)
         {
-            timeString = "Î´Öª";
+            timeString = "æœªçŸ¥";
             return false;
         }
 
@@ -149,7 +149,7 @@ public readonly struct TimeInterval : IEquatable<TimeInterval>
         {
             if (End < now)
             {
-                timeString = "´Ó²»";
+                timeString = "å¾ä¸";
                 return false;
             }
 
