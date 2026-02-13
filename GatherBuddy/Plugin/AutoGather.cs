@@ -544,6 +544,7 @@ namespace GatherBuddy.Plugin
             if (VNavmesh_IPCSubscriber.Nav_BuildProgress() > 0) return;
             var currentPosition = Dalamud.ClientState.LocalPlayer.Position;
             var currentTime = DateTime.Now;
+            var isNavigatingState = AutoState is AutoStateType.Pathing or AutoStateType.MovingToNode;
 
             // Check if enough time has passed since the last position check
             if (currentTime - _lastPositionCheckTime >= _stuckDurationThreshold)
@@ -551,7 +552,7 @@ namespace GatherBuddy.Plugin
                 var distance = Vector3.Distance(currentPosition, _lastKnownPosition);
 
                 // If the player has not moved a significant distance, consider them stuck
-                if (IsPathing && distance < 3)
+                if ((IsPathing || isNavigatingState) && distance < 3)
                 {
                     GatherBuddy.Log.Warning("Navmesh is stuck, reloading...");
                     VNavmesh_IPCSubscriber.Path_Stop();
@@ -567,7 +568,7 @@ namespace GatherBuddy.Plugin
                 var distance = Vector3.Distance(currentPosition, _lastKnownPositionSuperStuck);
 
                 // If the player has not moved a significant distance, consider them stuck
-                if (distance < 3)
+                if ((IsPathing || isNavigatingState) && distance < 3)
                 {
                     GatherBuddy.Log.Warning("Navmesh is super stuck, hard reloading...");
                     VNavmesh_IPCSubscriber.Path_Stop();
